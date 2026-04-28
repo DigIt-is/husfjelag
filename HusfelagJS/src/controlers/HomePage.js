@@ -123,7 +123,7 @@ function Hero({ onSignup }) {
                     </Typography>
                     <Typography variant="h3" sx={{ color: '#fff', fontWeight: 200, lineHeight: 1.25, mb: 2, fontSize: { xs: 28, md: 36 } }}>
                         Stjórnaðu húsfélaginu þínu með{' '}
-                        <Box component="span" sx={{ fontWeight: 600 }}>fullkominni yfirsýn</Box>
+                        <Box component="span" sx={{ fontWeight: 600 }}>einfaldri yfirsýn</Box>
                     </Typography>
                     <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, lineHeight: 1.65 }}>
                         Innheimta, áætlun og fjárhagsleg yfirlit — allt á einum stað.
@@ -137,7 +137,7 @@ function Hero({ onSignup }) {
                             px: 3.25, py: 1.375, fontSize: 14, fontWeight: 600, textTransform: 'none',
                             '&:hover': { background: '#06a866' },
                         }}>
-                            Byrja frítt →
+                            Skráðu þig frítt →
                         </Button>
                         <Button component="a" href="#stories" sx={{
                             background: 'transparent', color: 'rgba(255,255,255,0.75)',
@@ -145,7 +145,7 @@ function Hero({ onSignup }) {
                             px: 2.75, py: 1.25, fontSize: 14, fontWeight: 400, textTransform: 'none',
                             '&:hover': { background: 'rgba(255,255,255,0.06)' },
                         }}>
-                            Sjá meira
+                            Segðu mér meira
                         </Button>
                     </Box>
                 </Box>
@@ -196,18 +196,18 @@ function Stories() {
     const stories = [
         {
             label: 'Áætlun',
-            title: 'Búðu til árlegri fjárhagsáætlun á nokkrum mínútum',
-            body: 'Leiðsagnarforrit hjálpar þér að setja upp áætlun eftir flokkum. Samanburður við raunverulegar tekjur og gjöld sýnir þér hvar þú stendur.',
+            title: 'Búðu til fjárhagsáætlun á nokkrum mínútum',
+            body: 'Kerfið hjálpar þér að setja upp áætlun eftir flokkum. Samanburður við raunverulegar tekjur og gjöld sýnir þér hvar þú stendur.',
             img: '/images/budget.png',
             imgAlt: 'Áætlunarleiðsögn og flokkayfirsýn',
             reverse: false,
         },        
         {
             label: 'Innheimta',
-            title: 'Sjálfvirk mánaðarleg innheimta á húsgjöldum',
-            body: 'Stilltu mánaðarlegar greiðslur fyrir hverja íbúð einu sinni — kerfið sér um rest. Sjáðu hverjir hafa greitt og hverjir eru í vanskilum í rauntíma.',
+            title: 'Mánaðarleg innheimta á húsgjöldum',
+            body: 'Mánaðarleg innheimta er reiknuð út frá áætlun á hverja íbúð — kerfið sér um rest. Sjáðu hverjir hafa greitt og hverjir eru í vanskilum.',
             img: '/images/collection.png',
-            imgAlt: 'Innheimtutafla með stöðu hverrar íbúðar',
+            imgAlt: 'Innheimtukröfur með stöðu hverrar íbúðar',
             reverse: true,
         },
         {
@@ -233,15 +233,15 @@ function Stories() {
 
 function FeatureGrid() {
     const features = [
-        { icon: BusinessOutlinedIcon,        title: 'Húsfélag',         desc: 'Skrá og stjórna upplýsingum um húsfélagið, formann og gjaldkera.' },
-        { icon: HomeOutlinedIcon,            title: 'Íbúðir',           desc: 'Skrá íbúðir, eignarhlutfall og greiðsluskyldu hverrar einingar.' },
-        { icon: GroupOutlinedIcon,           title: 'Eigendur',          desc: 'Tengja eigendur og greiðendur við íbúðir, með aðgangsstýringu.' },
-        { icon: ReceiptLongOutlinedIcon,     title: 'Innheimta',         desc: 'Mánaðarleg innheimta á húsgjöldum með yfirlit yfir stöðu hvers íbúðar.' },
-        { icon: AssessmentOutlinedIcon,      title: 'Áætlun',            desc: 'Árleg fjárhagsáætlun eftir flokkum með samanburði við raunverulegar tölur.' },
-        { icon: CreditCardOutlinedIcon,      title: 'Færslur',           desc: 'Flytja inn bankafærslur og flokka þær sjálfvirkt með lykilorðareglum.' },
+        { icon: BusinessOutlinedIcon,        title: 'Húsfélag',          desc: 'Skrá og stjórna upplýsingum um húsfélagið, formann og gjaldkera.' },
+        { icon: HomeOutlinedIcon,            title: 'Íbúðir',            desc: 'Skrá íbúðir, eignarhlutfall og greiðsluskyldu hverrar einingar.' },
+        { icon: GroupOutlinedIcon,           title: 'Eigendur',          desc: 'Tengja eigendur og greiðendur við íbúðir, með öruggri aðgangsstýringu.' },
+        { icon: ReceiptLongOutlinedIcon,     title: 'Innheimta',         desc: 'Mánaðarleg innheimta á húsgjöldum með yfirlit yfir stöðu hverrar íbúðar.' },
+        { icon: AssessmentOutlinedIcon,      title: 'Áætlun',            desc: 'Árleg fjárhagsáætlun eftir flokkum með samanburði við raunveruleg útgjöld.' },
+        { icon: CreditCardOutlinedIcon,      title: 'Færslur',           desc: 'Flytja inn bankafærslur og flokka þær sjálfvirkt með á útgjaldaflokka.' },
         { icon: BarChartOutlinedIcon,        title: 'Yfirlit',           desc: 'Mánaðarlegar og árlegar fjárhagsskýrslur — alltaf uppfærðar.' },
-        { icon: AccountBalanceOutlinedIcon,  title: 'Bankareikningar',   desc: 'Tengja bankareikninga við húsfélagið og bókhaldslykla.' },
-        { icon: LabelOutlinedIcon,           title: 'Flokkunarreglur',   desc: 'Sjálfvirk flokkun færslna með lykilorðareglum — sparar tíma.' },
+        { icon: AccountBalanceOutlinedIcon,  title: 'Bankareikningar',   desc: 'Fylgjast með bankareikningum húsfélagsins, tekjum og útgjöldum félagsins.' },
+        { icon: LabelOutlinedIcon,           title: 'Flokkunarreglur',   desc: 'Sjálfvirk flokkun færslna af bankareikningnum á útgjaldaflokka og bókhaldslykla — sparar tíma.' },
     ];
 
     return (
@@ -323,10 +323,10 @@ function FaqItem({ question, answer }) {
 
 function Pitch() {
     const points = [
-        { kw: 'Sjálfvirkni',          txt: 'Settu upp reksturinn einu sinni — kerfið sér um innheimtu, reikningsgreiðslur og bókhald sjálfkrafa.' },
-        { kw: '24/7 aðgangur',        txt: 'Eigendur íbúða fá aðgang að yfirliti allan sólarhringinn og ársskýrsla fyrir aðalfund verður til á einni sekúndu.' },
-        { kw: '90% sparnaður',         txt: 'Húsfjelag er miklu ódýrara en hefðbundin húsfélagaþjónusta — og krefst engrar sérþekkingar.' },
-        { kw: 'Einfaldleiki',          txt: 'Ef eitthvað þarfnast athygli fá stjórnendur tilkynningu í tölvupósti eða SMS — þú þarft ekki að fylgjast stöðugt með.' },
+        { kw: 'Sjálfvirkni',           txt: 'Settu upp reksturinn einu sinni — kerfið sér um að reikna greiðslur í hússjóðinn, innheimtu og bókhaldið sjálfkrafa.' },
+        { kw: '24/7 aðgangur',         txt: 'Eigendur íbúða fá aðgang að einföldu yfirliti um húsfélagið og ársskýrslu fyrir aðalfund.' },
+        { kw: 'Fullt af sparnaði',     txt: 'Húsfjelag er miklu ódýrara en hefðbundin húsfélagaþjónusta — og krefst engrar sérþekkingar.' },
+        { kw: 'Einfaldleiki',          txt: 'Ef eitthvað þarfnast athygli færðu tilkynningu í tölvupósti — þú þarft ekki að fylgjast stöðugt með.' },
     ];
 
     return (
@@ -339,7 +339,7 @@ function Pitch() {
                     px: 1.75, py: 0.5, fontSize: 11, fontWeight: 600,
                     color: '#1D366F', letterSpacing: '0.04em', mb: 3,
                 }}>
-                    Af hverju Húsfjelag?
+                    Ekki eyða frítímanum þínum í sjálfboðastarf
                 </Box>
 
                 {/* Headline */}
@@ -398,27 +398,27 @@ function Faq() {
     const items = [
         {
             question: 'Hvað kostar kerfið?',
-            answer: 'Húsfjelag er í þróun og verðlag hefur ekki verið ákveðið. Við munum bjóða upp á einfaldar og gagnsæjar verðlegar lausnir sem henta húsfélögum af öllum stærðum.',
+            answer: 'Húsfjelag er í þróun og verðið hefur ekki verið ákveðið. Við munum bjóða upp á einfaldar og gagnsæjar lausnir sem henta húsfélögum af öllum stærðum.',
         },
         {
-            question: 'Þarf ég að setja upp neitt til að byrja?',
-            answer: 'Nei. Húsfjelag er skýjalausn — engin uppsetning þarf. Þú skráir þig, stofnar húsfélagið þitt og byrjar að nota kerfið strax í vafranum.',
+            question: 'Þarf ég að setja upp eitthvað til að byrja?',
+            answer: 'Já, þú skráir þig inn, stofnar húsfélagið þitt með kennitölu ásamt upplýsingum um formann og byrjar að nota kerfið strax í vafranum.',
         },
         {
             question: 'Get ég flutt inn gögn frá banka?',
-            answer: 'Já. Kerfið styður innflutning á bankafærslum í CSV-sniði. Færslur eru flokkaðar sjálfvirkt með lykilorðareglum sem þú skilgreinir.',
+            answer: 'Já. Kerfið styður innflutning á bankafærslum frá Arion, Íslandsbanka, og Landsbankanum. Færslur eru flokkaðar sjálfvirkt á útgjaldaflokka og bókhaldslykla.',
         },
         {
             question: 'Hvernig virkar innheimtan?',
-            answer: 'Þú stillir mánaðarlegar greiðslur fyrir hverja íbúð einu sinni. Kerfið heldur utan um stöðu hvers íbúðar og sýnir þér hverjir eru í vanskilum í rauntíma.',
+            answer: 'Þú stillir upp áætlun fyrir húsfélagið og kerfið reiknar út mánaðarlegar greiðslur fyrir hverja íbúð. Kerfið heldur utan um stöðu hvers íbúðar og sýnir þér hverjir eru búnir að greiða og hverjir ekki.',
         },
         {
             question: 'Er hægt að hafa fleiri en einn notanda?',
             answer: 'Já. Hægt er að veita fleiri notendum aðgang að húsfélaginu með mismunandi réttindum — stjórnanda, gjaldkera eða venjulegum notanda.',
         },
         {
-            question: 'Eru gögnin geymd á Íslandi?',
-            answer: 'Við leggjum mikla áherslu á öryggi og persónuvernd. Við erum að vinna að því að tryggja að gögn séu geymd í samræmi við íslenskar og evrópskár reglur (GDPR).',
+            question: 'Eru gögnin mín örugg?',
+            answer: 'Við leggjum mikla áherslu á öryggi og persónuvernd. Við tryggjum að gögn séu geymd innan Evrópu og í samræmi við íslenskar og evrópskar reglur (GDPR).',
         },
     ];
 
@@ -429,7 +429,7 @@ function Faq() {
                     color: '#08C076', fontSize: 10, fontWeight: 700,
                     letterSpacing: '0.1em', textTransform: 'uppercase', mb: 1.5,
                 }}>
-                    FAQ
+                    Spurt og svarað
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 600, color: '#111', mb: 5 }}>
                     Algengar spurningar

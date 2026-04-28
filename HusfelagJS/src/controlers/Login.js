@@ -60,7 +60,7 @@ function LoginForm() {
                             Innskráning
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Skráðu þig inn með rafrænum skilríkjum, Auðkennisappinu eða aðgangslykil fyrir einfaldar og fljótlega innskráningu.
+                            Skráðu þig inn með rafrænum skilríkjum, Auðkennisappinu og búðu til aðgangslykil fyrir einfaldari innkráningu.
                         </Typography>
                     </Box>
 
