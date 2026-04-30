@@ -212,17 +212,17 @@ class AssociationRoleView(APIView):
     def patch(self, request, user_id):
         """
         PATCH /Association/roles/{user_id}
-        Body: {role: "CHAIR"|"CFO", kennitala: "XXXXXXXXXX"}
-        Assigns the user identified by kennitala to the given role in the association.
-        The previous holder is demoted to MEMBER.
+        Body: {chair_kennitala?: "XXXXXXXXXX", cfo_kennitala?: "XXXXXXXXXX"}
+        Updates one or both board roles. Previous holders are demoted to MEMBER.
+        Stamps board_changed_at and board_changed_by on the association.
         """
-        role = request.data.get("role", "").upper()
-        kennitala = request.data.get("kennitala", "").strip().replace("-", "")
+        from django.utils import timezone
 
-        if role not in (AssociationRole.CHAIR, AssociationRole.CFO):
-            return Response({"detail": "role verður að vera CHAIR eða CFO."}, status=status.HTTP_400_BAD_REQUEST)
-        if not kennitala:
-            return Response({"detail": "kennitala er nauðsynleg."}, status=status.HTTP_400_BAD_REQUEST)
+        chair_kt = request.data.get("chair_kennitala", "").strip().replace("-", "")
+        cfo_kt = request.data.get("cfo_kennitala", "").strip().replace("-", "")
+
+        if not chair_kt and not cfo_kt:
+            return Response({"detail": "chair_kennitala eða cfo_kennitala er nauðsynleg."}, status=status.HTTP_400_BAD_REQUEST)
 
         association = _resolve_assoc(user_id, request)
         if not association:
@@ -232,24 +232,35 @@ class AssociationRoleView(APIView):
         if err:
             return err
 
-        try:
-            new_user = User.objects.get(kennitala=kennitala)
-        except User.DoesNotExist:
-            return Response({"detail": "Notandi með þessa kennitölu fannst ekki."}, status=status.HTTP_404_NOT_FOUND)
+        def _assign_role(kennitala, role):
+            try:
+                new_user = User.objects.get(kennitala=kennitala)
+            except User.DoesNotExist:
+                return Response({"detail": f"Notandi með kennitöluna {kennitala} fannst ekki."}, status=status.HTTP_404_NOT_FOUND)
+            AssociationAccess.objects.filter(
+                association=association, role=role, active=True
+            ).exclude(user=new_user).update(role=AssociationRole.MEMBER)
+            entry, _ = AssociationAccess.objects.get_or_create(
+                user=new_user, association=association,
+                defaults={"role": role, "active": True},
+            )
+            entry.role = role
+            entry.active = True
+            entry.save(update_fields=["role", "active"])
+            return None
 
-        # Demote current holder to MEMBER
-        AssociationAccess.objects.filter(
-            association=association, role=role, active=True
-        ).exclude(user=new_user).update(role=AssociationRole.MEMBER)
+        if chair_kt:
+            err = _assign_role(chair_kt, AssociationRole.CHAIR)
+            if err:
+                return err
+        if cfo_kt:
+            err = _assign_role(cfo_kt, AssociationRole.CFO)
+            if err:
+                return err
 
-        # Assign new holder
-        entry, _ = AssociationAccess.objects.get_or_create(
-            user=new_user, association=association,
-            defaults={"role": role, "active": True},
-        )
-        entry.role = role
-        entry.active = True
-        entry.save(update_fields=["role", "active"])
+        association.board_changed_at = timezone.now()
+        association.board_changed_by = request.user
+        association.save(update_fields=["board_changed_at", "board_changed_by"])
 
         return Response(AssociationSerializer(association).data)
 

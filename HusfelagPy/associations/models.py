@@ -10,6 +10,11 @@ class Association(models.Model):
     date_of_board_change = models.DateField(null=True, blank=True)
     registered = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=100, null=True, blank=True)
+    board_changed_at = models.DateTimeField(null=True, blank=True)
+    board_changed_by = models.ForeignKey(
+        "users.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="board_changes",
+    )
 
     class Meta:
         db_table = "associations_association"

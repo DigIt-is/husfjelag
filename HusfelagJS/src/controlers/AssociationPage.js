@@ -42,7 +42,7 @@ function AssociationPage() {
     const [owners, setOwners] = useState([]);
 
     const [error, setError] = useState('');
-    const [roleDialog, setRoleDialog] = useState(null);
+    const [boardDialogOpen, setBoardDialogOpen] = useState(false);
     const [bankAccounts, setBankAccounts] = useState([]);
     const [rules, setRules] = useState([]);
     const [collections, setCollections] = useState([]);
@@ -128,7 +128,10 @@ function AssociationPage() {
             setupSteps={setupSteps}
             setupComplete={setupComplete}
             owners={owners}
+            userId={user.id}
+            assocParam={assocParam}
             onNavigate={(path) => navigate(path)}
+            onAssociationUpdated={(updated) => setAssociation(updated)}
         />;
     }
 
@@ -139,24 +142,12 @@ function AssociationPage() {
                 {/* Zone 1: Header */}
                 <Box sx={{ px: 3, py: 2, background: '#fff', borderBottom: `1px solid ${BORDER}`, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.25 }}>Húsfélag</Typography>
                         <Typography variant="h5">{association.name}</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                            Kennitala {fmtKennitala(association.ssn)}{association.address ? ` · ${association.address}` : ''}
+                            Kennitala {fmtKennitala(association.ssn)}
+                            {association.address ? ` · ${association.address}` : ''}
+                            {association.postal_code || association.city ? `, ${[association.postal_code, association.city].filter(Boolean).join(' ')}` : ''}
                         </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Button sx={ghostButtonSx} startIcon={<EditIcon sx={{ fontSize: 16 }} />}
-                            onClick={() => navigate('/husfelag')}
-                        >
-                            Breyta upplýsingum
-                        </Button>
-                        <Button variant="contained" sx={primaryButtonSx}
-                            startIcon={<PersonAddIcon sx={{ fontSize: 17 }} />}
-                            onClick={() => navigate('/eigendur')}
-                        >
-                            Skrá nýjan eiganda
-                        </Button>
                     </Box>
                 </Box>
 
@@ -171,14 +162,8 @@ function AssociationPage() {
                         <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 2 }}>
                             {/* Stjórn card */}
                             <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '6px', p: '18px 20px' }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                                <Box sx={{ mb: 1.5 }}>
                                     <Eyebrow variant="navy">STJÓRN</Eyebrow>
-                                    <Button sx={{ ...ghostButtonSx, minHeight: 0, p: '4px 8px', fontSize: 12 }}
-                                        startIcon={<SwapHorizIcon sx={{ fontSize: 15 }} />}
-                                        onClick={() => setRoleDialog({ role: 'CHAIR', label: 'Formaður', currentName: association.chair })}
-                                    >
-                                        Breyta stjórn
-                                    </Button>
                                 </Box>
                                 <Box sx={{ display: 'flex', gap: 2 }}>
                                     {[
@@ -196,6 +181,12 @@ function AssociationPage() {
                                         </Box>
                                     ))}
                                 </Box>
+                                {association.board_changed_at && (
+                                    <Typography sx={{ fontSize: 11, color: '#aaa', mt: 1.5 }}>
+                                        Breytt {new Date(association.board_changed_at).toLocaleDateString('is-IS', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        {association.board_changed_by_name ? ` · ${association.board_changed_by_name}` : ''}
+                                    </Typography>
+                                )}
                             </Box>
 
                             {/* Eignarhald card */}
@@ -220,7 +211,7 @@ function AssociationPage() {
                             <Typography sx={{ fontSize: 14, fontWeight: 600, mb: 1.5 }}>Aðgerðir</Typography>
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5 }}>
                                 {[
-                                    { icon: <SwapHorizIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Breyta stjórn', sub: 'Skipta um formann eða gjaldkera', onClick: () => setRoleDialog({ role: 'CHAIR', label: 'Formaður', currentName: association.chair }) },
+                                    { icon: <SwapHorizIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Breyta stjórn', sub: 'Skipta um formann eða gjaldkera', onClick: () => setBoardDialogOpen(true) },
                                     { icon: <PersonAddIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Skrá nýjan eiganda', sub: 'Tekur yfir fyrir fyrri eiganda íbúðar', onClick: () => navigate('/eigendur') },
                                     { icon: <AssessmentIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Uppfæra áætlun', sub: `Tekjur og gjöld ${new Date().getFullYear()}`, onClick: () => navigate('/aaetlun') },
                                     { icon: <EventRepeatIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Búa til innheimtu', sub: 'Mánaðargreiðslur eigenda', onClick: () => navigate('/innheimta') },
@@ -261,7 +252,6 @@ function AssociationPage() {
                     {/* RIGHT column: sticky Athugasemdir */}
                     <AthugasemdarPanel
                         collections={collections}
-                        bankAccounts={bankAccounts}
                         userId={user.id}
                         assocParam={assocParam}
                     />
@@ -270,41 +260,44 @@ function AssociationPage() {
                 </Box>
             </Box>
 
-            {roleDialog && (
-                <RoleDialog
-                    open
-                    role={roleDialog.role}
-                    label={roleDialog.label}
-                    currentName={roleDialog.currentName}
-                    owners={owners}
-                    userId={user.id}
-                    assocParam={assocParam}
-                    onClose={() => setRoleDialog(null)}
-                    onSaved={(updated) => { setAssociation(updated); setRoleDialog(null); }}
-                />
-            )}
+            <BoardDialog
+                open={boardDialogOpen}
+                association={association}
+                owners={owners}
+                userId={user.id}
+                assocParam={assocParam}
+                onClose={() => setBoardDialogOpen(false)}
+                onSaved={(updated) => { setAssociation(updated); setBoardDialogOpen(false); }}
+            />
         </div>
     );
 }
 
 
 
-function RoleDialog({ open, role, label, currentName, owners, userId, assocParam, onClose, onSaved }) {
-    const [selected, setSelected] = useState(null);
+function BoardDialog({ open, association, owners, userId, assocParam, onClose, onSaved }) {
+    const [newChair, setNewChair] = useState(null);
+    const [newCfo, setNewCfo] = useState(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    const inputLabel = role === 'CHAIR' ? 'Kennitala nýs formanns' : 'Kennitala nýs gjaldkera';
+    const filterOwners = (opts, { inputValue }) => {
+        const q = inputValue.toLowerCase();
+        return opts.filter(o => o.name.toLowerCase().includes(q) || o.kennitala.includes(q));
+    };
 
     const handleSave = async () => {
-        if (!selected) return;
+        if (!newChair && !newCfo) return;
         setError('');
         setSaving(true);
         try {
+            const body = {};
+            if (newChair) body.chair_kennitala = newChair.kennitala;
+            if (newCfo) body.cfo_kennitala = newCfo.kennitala;
             const resp = await apiFetch(`${API_URL}/Association/roles/${userId}${assocParam}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role, kennitala: selected.kennitala }),
+                body: JSON.stringify(body),
             });
             if (resp.ok) {
                 onSaved(await resp.json());
@@ -319,36 +312,55 @@ function RoleDialog({ open, role, label, currentName, owners, userId, assocParam
         }
     };
 
+    const canSave = (newChair || newCfo) && !saving;
+
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-            <DialogTitle>Breyta {label}</DialogTitle>
-            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                    {label}: <strong>{currentName || '—'}</strong>
-                </Typography>
-                <Autocomplete
-                    options={owners}
-                    getOptionLabel={o => `${o.name} — ${fmtKennitala(o.kennitala)}`}
-                    filterOptions={(opts, { inputValue }) => {
-                        const q = inputValue.toLowerCase();
-                        return opts.filter(o =>
-                            o.name.toLowerCase().includes(q) || o.kennitala.includes(q)
-                        );
-                    }}
-                    value={selected}
-                    onChange={(_, val) => setSelected(val)}
-                    renderInput={params => (
-                        <TextField {...params} label={inputLabel} size="small" autoFocus />
-                    )}
-                    noOptionsText="Enginn eigandi fannst"
-                />
+        <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth
+            TransitionProps={{ onExited: () => { setNewChair(null); setNewCfo(null); setError(''); } }}
+        >
+            <DialogTitle>Breyta stjórn</DialogTitle>
+            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: '16px !important' }}>
+                {/* Chair */}
+                <Box>
+                    <Typography sx={{ fontSize: 12, color: '#888', mb: 0.75 }}>
+                        Formaður núverandi: <strong style={{ color: '#111' }}>{association.chair || '—'}</strong>
+                    </Typography>
+                    <Autocomplete
+                        options={owners}
+                        getOptionLabel={o => `${o.name} — ${fmtKennitala(o.kennitala)}`}
+                        filterOptions={filterOwners}
+                        value={newChair}
+                        onChange={(_, val) => setNewChair(val)}
+                        renderInput={params => (
+                            <TextField {...params} label="Nýr formaður" size="small" autoFocus />
+                        )}
+                        noOptionsText="Enginn eigandi fannst"
+                    />
+                </Box>
+                {/* CFO */}
+                <Box>
+                    <Typography sx={{ fontSize: 12, color: '#888', mb: 0.75 }}>
+                        Gjaldkeri núverandi: <strong style={{ color: '#111' }}>{association.cfo || '—'}</strong>
+                    </Typography>
+                    <Autocomplete
+                        options={owners}
+                        getOptionLabel={o => `${o.name} — ${fmtKennitala(o.kennitala)}`}
+                        filterOptions={filterOwners}
+                        value={newCfo}
+                        onChange={(_, val) => setNewCfo(val)}
+                        renderInput={params => (
+                            <TextField {...params} label="Nýr gjaldkeri" size="small" />
+                        )}
+                        noOptionsText="Enginn eigandi fannst"
+                    />
+                </Box>
                 {error && <Alert severity="error">{error}</Alert>}
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
                 <Button sx={ghostButtonSx} onClick={onClose}>Hætta við</Button>
                 <Button
                     variant="contained" sx={primaryButtonSx}
-                    disabled={!selected || saving} onClick={handleSave}
+                    disabled={!canSave} onClick={handleSave}
                 >
                     {saving ? <CircularProgress size={18} color="inherit" /> : 'Vista'}
                 </Button>
@@ -854,9 +866,12 @@ const SETUP_STEP_DEFS = [
     { icon: <EventRepeatIcon sx={{ fontSize: 18 }} />, title: 'Hefja innheimtu', sub: 'Mánaðarlegar greiðslur', navPath: '/innheimta' },
 ];
 
-function UppsetningView({ association, setupSteps, setupComplete, owners, onNavigate }) {
+function UppsetningView({ association, setupSteps, setupComplete, owners, userId, assocParam, onNavigate, onAssociationUpdated }) {
+    const [boardDialogOpen, setBoardDialogOpen] = React.useState(false);
+
     const firstIncomplete = setupSteps.findIndex(done => !done);
     const nextPath = firstIncomplete >= 0 ? SETUP_STEP_DEFS[firstIncomplete].navPath : null;
+    const nextIsBoardStep = firstIncomplete === 1;
 
     const chair = owners.find(o => o.role === 'CHAIR' || o.role === 'Formaður');
     const cfo   = owners.find(o => o.role === 'CFO'   || o.role === 'Gjaldkeri');
@@ -916,16 +931,22 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, onNavi
                             {SETUP_STEP_DEFS.map((def, i) => {
                                 const done = setupSteps[i];
                                 const isPrimary = !done && setupSteps.slice(0, i).every(Boolean);
+                                const isBoardStep = i === 1;
+                                const isClickable = !done && (def.navPath || isBoardStep);
                                 return (
                                     <Box key={i}
-                                        onClick={() => def.navPath && onNavigate(def.navPath)}
+                                        onClick={() => {
+                                            if (done) return;
+                                            if (isBoardStep) setBoardDialogOpen(true);
+                                            else if (def.navPath) onNavigate(def.navPath);
+                                        }}
                                         sx={{
                                             border: isPrimary ? `1.5px solid ${NAVY}` : `1px solid ${BORDER}`,
                                             background: done ? '#fafafa' : isPrimary ? '#eef1f8' : '#fff',
                                             borderRadius: '6px', p: '14px 16px',
                                             opacity: done ? 0.7 : 1,
-                                            cursor: def.navPath && !done ? 'pointer' : 'default',
-                                            '&:hover': def.navPath && !done ? { borderColor: NAVY } : {},
+                                            cursor: isClickable ? 'pointer' : 'default',
+                                            '&:hover': isClickable ? { borderColor: NAVY } : {},
                                             transition: '150ms',
                                         }}
                                     >
@@ -946,12 +967,12 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, onNavi
                         </Box>
 
                         {/* CTA */}
-                        {nextPath && (
+                        {(nextPath || nextIsBoardStep) && (
                             <Box sx={{ mt: 3 }}>
                                 <Button
                                     variant="contained"
                                     sx={primaryButtonSx}
-                                    onClick={() => onNavigate(nextPath)}
+                                    onClick={() => nextIsBoardStep ? setBoardDialogOpen(true) : onNavigate(nextPath)}
                                 >
                                     Halda áfram með uppsetningu →
                                 </Button>
@@ -1027,26 +1048,70 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, onNavi
 
                 </Box>
             </Box>
+
+            <BoardDialog
+                open={boardDialogOpen}
+                association={association}
+                owners={owners}
+                userId={userId}
+                assocParam={assocParam}
+                onClose={() => setBoardDialogOpen(false)}
+                onSaved={(updated) => { onAssociationUpdated(updated); setBoardDialogOpen(false); }}
+            />
         </div>
     );
 }
 
-function AthugasemdarPanel({ collections, bankAccounts, userId, assocParam }) {
+const IS_MONTHS = ['janúar','febrúar','mars','apríl','maí','júní','júlí','ágúst','september','október','nóvember','desember'];
+
+function AthugasemdarPanel({ collections, userId, assocParam }) {
     const [unclassifiedCount, setUnclassifiedCount] = React.useState(0);
-    const year = new Date().getFullYear();
+    const [missingMonths, setMissingMonths] = React.useState([]);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
 
     React.useEffect(() => {
-        const qs = assocParam ? `${assocParam}&status=IMPORTED&year=${year}` : `?status=IMPORTED&year=${year}`;
-        apiFetch(`${API_URL}/Transaction/${userId}${qs}`)
+        const txnQs = assocParam ? `${assocParam}&status=IMPORTED&year=${year}` : `?status=IMPORTED&year=${year}`;
+        apiFetch(`${API_URL}/Transaction/${userId}${txnQs}`)
             .then(r => r.ok ? r.json() : [])
             .then(txns => setUnclassifiedCount(Array.isArray(txns) ? txns.length : (txns?.count ?? 0)))
             .catch(() => {});
-    }, [userId, assocParam, year]);
+
+        const monthsToCheck = Array.from({ length: month }, (_, i) => i + 1);
+        Promise.all(
+            monthsToCheck.map(m => {
+                const qs = assocParam ? `${assocParam}&month=${m}&year=${year}` : `?month=${m}&year=${year}`;
+                return apiFetch(`${API_URL}/Collection/${userId}${qs}`)
+                    .then(r => r.ok ? r.json() : { rows: [] })
+                    .then(data => ({ month: m, has: (data?.rows?.length ?? 0) > 0 }));
+            })
+        ).then(results => setMissingMonths(results.filter(r => !r.has).map(r => r.month)))
+         .catch(() => {});
+    }, [userId, assocParam, year, month]);
 
     const pendingCount = collections.filter(r => r.status === 'PENDING' || r.status === 'UNPAID').length;
-    const hasBanks = bankAccounts.length > 0;
+    const currentMonthMissing = missingMonths.includes(month);
+    const prevMissingMonths = missingMonths.filter(m => m !== month);
 
     const notifications = [];
+
+    if (currentMonthMissing) {
+        notifications.push({
+            icon: <WarningAmberIcon sx={{ fontSize: 22, color: '#c62828', mt: '1px' }} />,
+            text: `Innheimta fyrir ${IS_MONTHS[month - 1]} hefur ekki verið búin til`,
+            cta: { label: 'Búa til innheimtu →', href: '/innheimta' },
+        });
+    }
+
+    if (prevMissingMonths.length > 0) {
+        const names = prevMissingMonths.map(m => IS_MONTHS[m - 1]).join(', ');
+        notifications.push({
+            icon: <WarningAmberIcon sx={{ fontSize: 22, color: '#e65100', mt: '1px' }} />,
+            text: `Innheimta vantar fyrir: ${names}`,
+            cta: { label: 'Búa til innheimtu →', href: '/innheimta' },
+        });
+    }
 
     if (pendingCount > 0) {
         notifications.push({
@@ -1061,14 +1126,6 @@ function AthugasemdarPanel({ collections, bankAccounts, userId, assocParam }) {
             icon: <LinkOffIcon sx={{ fontSize: 22, color: '#777', mt: '1px' }} />,
             text: `${unclassifiedCount} óflokkuð bankafærsla${unclassifiedCount === 1 ? '' : 'r'}`,
             cta: { label: 'Flokka færslu →', href: '/faerslur' },
-        });
-    }
-
-    if (hasBanks) {
-        notifications.push({
-            icon: <CheckCircleOutlineIcon sx={{ fontSize: 22, color: '#2e7d32', mt: '1px' }} />,
-            text: 'Bankareikningar tengdir',
-            cta: { label: 'Skoða →', href: '/bank-settings' },
         });
     }
 
