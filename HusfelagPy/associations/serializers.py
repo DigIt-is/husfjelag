@@ -10,12 +10,14 @@ class AssociationSerializer(serializers.ModelSerializer):
     owner_count = serializers.SerializerMethodField()
     chair = serializers.SerializerMethodField()
     cfo = serializers.SerializerMethodField()
+    board_changed_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Association
         fields = ["id", "ssn", "name", "address", "postal_code", "city",
                   "date_of_board_change", "registered", "status",
-                  "apartment_count", "owner_count", "chair", "cfo"]
+                  "apartment_count", "owner_count", "chair", "cfo",
+                  "board_changed_at", "board_changed_by_name"]
 
     def get_apartment_count(self, obj):
         return obj.apartments.filter(deleted=False).count()
@@ -37,6 +39,9 @@ class AssociationSerializer(serializers.ModelSerializer):
     def get_cfo(self, obj):
         e = self._get_role_entry(obj, AssociationRole.CFO)
         return e.user.name if e else None
+
+    def get_board_changed_by_name(self, obj):
+        return obj.board_changed_by.name if obj.board_changed_by_id else None
 
 
 class ApartmentOwnerSerializer(serializers.ModelSerializer):

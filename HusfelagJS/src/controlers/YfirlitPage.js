@@ -3,9 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Box, Typography, CircularProgress, Button,
-    Table, TableHead, TableRow, TableCell, TableBody, TableFooter,
 } from '@mui/material';
-import { HEAD_SX, HEAD_CELL_SX, AmountCell } from './tableUtils';
 import DownloadIcon from '@mui/icons-material/Download';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -190,14 +188,14 @@ export default function YfirlitPage() {
                             </Box>
                         </Box>
 
-                        {/* Cell 4: Monthly collection */}
+                        {/* Cell 4: Total active budget */}
                         <Box sx={{ p: '22px 24px', borderLeft: `1px solid ${BORDER}` }}>
-                            <Eyebrow variant="muted">MÁNAÐARLEG INNHEIMTA</Eyebrow>
+                            <Eyebrow variant="muted">HEILDAR ÁÆTLUN</Eyebrow>
                             <Typography sx={{ ...monoSx, fontSize: 24, fontWeight: 500, mt: 1, color: POSITIVE }}>
-                                {fmtAmount(totalMonthly)}
+                                {fmtAmount(totalBudget)}
                             </Typography>
                             <Typography sx={{ fontSize: 12, color: '#555', mt: 0.75 }}>
-                                Næst: 1. {MONTH_NAMES_SHORT[nextMonth - 1].toLowerCase()}
+                                Virk áætlun {year}
                             </Typography>
                         </Box>
                     </Box>
@@ -239,13 +237,14 @@ export default function YfirlitPage() {
                         {/* Áætlun vs raun — variance bars */}
                         <Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1.5 }}>
-                                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Áætlun vs raun · {year}</Typography>
+                                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Raun vs áætlun · {year}</Typography>
                                 <Typography sx={{ fontSize: 12, color: '#888' }}>Eftir flokki</Typography>
                             </Box>
                             <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '6px', py: 0.75 }}>
-                                {expenses.slice(0, 6).map((e, i) => {
+                                {expenses.map((e, i) => {
                                     const b = parseFloat(e.budgeted || 0);
                                     const a = parseFloat(e.actual || 0);
+                                    const unbudgeted = b === 0;
                                     const pct = b > 0 ? Math.round(a / b * 100) : 0;
                                     const barColor = pct > 90 ? NEGATIVE : pct > 50 ? WARNING : NAVY;
                                     return (
@@ -253,14 +252,22 @@ export default function YfirlitPage() {
                                             <Typography sx={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {e.category_name}
                                             </Typography>
-                                            <Box sx={{ height: 6, background: '#f0f0f0', borderRadius: '3px', overflow: 'hidden' }}>
-                                                <Box sx={{ width: `${Math.min(100, pct)}%`, height: '100%', background: barColor, transition: 'width 200ms ease' }} />
-                                            </Box>
-                                            <Typography sx={{ ...monoSx, fontSize: 12, color: '#555', textAlign: 'right' }}>
+                                            {unbudgeted ? (
+                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                    <Box component="span" sx={{ fontSize: 11, color: '#999', fontStyle: 'italic', border: '1px dashed #ccc', borderRadius: '3px', px: 0.75, py: 0.15, whiteSpace: 'nowrap' }}>
+                                                        utan áætlunar
+                                                    </Box>
+                                                </Box>
+                                            ) : (
+                                                <Box sx={{ height: 6, background: '#f0f0f0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <Box sx={{ width: `${Math.min(100, pct)}%`, height: '100%', background: barColor, transition: 'width 200ms ease' }} />
+                                                </Box>
+                                            )}
+                                            <Typography sx={{ ...monoSx, fontSize: 12, color: unbudgeted ? '#aaa' : '#555', textAlign: 'right' }}>
                                                 {fmtAmount(a)}
                                             </Typography>
-                                            <Typography sx={{ ...monoSx, fontSize: 12, color: '#888', textAlign: 'right' }}>
-                                                {pct}%
+                                            <Typography sx={{ ...monoSx, fontSize: 12, color: '#bbb', textAlign: 'right' }}>
+                                                {unbudgeted ? '—' : `${pct}%`}
                                             </Typography>
                                         </Box>
                                     );
@@ -271,7 +278,7 @@ export default function YfirlitPage() {
                                 <Box sx={{ p: '10px 16px', borderTop: `1px solid ${BORDER}`, mt: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <Typography sx={{ fontSize: 13, fontWeight: 600 }}>Samtals nýtt</Typography>
                                     <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                                        <Typography sx={{ ...monoSx, fontSize: 13 }}>{fmtAmount(totalActual)} / {fmtAmount(totalBudget)}</Typography>
+                                        <Typography sx={{ ...monoSx, fontSize: 13 }}>{fmtAmount(totalActual)}</Typography>
                                         <Box component="span" sx={{ background: '#e3e8f4', color: NAVY, fontSize: 11, fontWeight: 600, px: 1, py: 0.25, borderRadius: 3 }}>
                                             {budgetPct}%
                                         </Box>
@@ -281,68 +288,6 @@ export default function YfirlitPage() {
                         </Box>
                     </Box>
 
-                    {/* ── Sundurliðun — full variance table ─────────────── */}
-                    <Box sx={{ mt: 4 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1.5 }}>
-                            <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Sundurliðun</Typography>
-                        </Box>
-                        <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '4px', overflow: 'hidden' }}>
-                            <Table size="small">
-                                <TableHead sx={HEAD_SX}>
-                                    <TableRow>
-                                        <TableCell sx={HEAD_CELL_SX}>Flokkur</TableCell>
-                                        <TableCell align="right" sx={HEAD_CELL_SX}>Áætlun</TableCell>
-                                        <TableCell align="right" sx={HEAD_CELL_SX}>Raun</TableCell>
-                                        <TableCell align="right" sx={HEAD_CELL_SX}>Frávik</TableCell>
-                                        <TableCell align="right" sx={{ ...HEAD_CELL_SX, width: 120 }}>Nýting</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {expenses.map((e, i) => {
-                                        const b = parseFloat(e.budgeted || 0);
-                                        const a = parseFloat(e.actual || 0);
-                                        const variance = b - a;
-                                        const pct = b > 0 ? Math.round(a / b * 100) : 0;
-                                        const over = pct > 100;
-                                        return (
-                                            <TableRow key={e.category_id || i} hover>
-                                                <TableCell>{e.category_name}</TableCell>
-                                                <AmountCell value={b} />
-                                                <AmountCell value={a} />
-                                                <TableCell align="right" sx={{ ...monoSx, color: over ? NEGATIVE : POSITIVE, fontSize: 13 }}>
-                                                    {fmtAmount(Math.abs(variance))}
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-                                                        <Box sx={{ width: 60, height: 5, background: '#f0f0f0', borderRadius: '3px', overflow: 'hidden' }}>
-                                                            <Box sx={{ width: `${Math.min(100, pct)}%`, height: '100%', background: over ? NEGATIVE : NAVY, transition: 'width 200ms ease' }} />
-                                                        </Box>
-                                                        <Typography sx={{ ...monoSx, fontSize: 12, color: '#888', width: 32, textAlign: 'right' }}>
-                                                            {pct}%
-                                                        </Typography>
-                                                    </Box>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                    {expenses.length === 0 && (
-                                        <TableRow>
-                                            <TableCell colSpan={5} sx={{ color: '#888', textAlign: 'center' }}>Engin áætlun skráð.</TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                                <TableFooter>
-                                    <TableRow sx={{ '& td': { fontWeight: 600, borderTop: '2px solid rgba(0,0,0,0.12)', color: 'text.primary' } }}>
-                                        <TableCell>Samtals</TableCell>
-                                        <AmountCell value={totalBudget} sx={{ fontWeight: 600 }} />
-                                        <AmountCell value={totalActual} sx={{ fontWeight: 600 }} />
-                                        <TableCell />
-                                        <TableCell />
-                                    </TableRow>
-                                </TableFooter>
-                            </Table>
-                        </Box>
-                    </Box>
 
                 </Box>
             </Box>
