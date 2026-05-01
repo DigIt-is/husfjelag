@@ -62,7 +62,7 @@ class ScrapeHMSApartmentsTest(TestCase):
             result = scrape_hms_apartments("https://hms.is/fasteignaskra/228369/1203373")
         self.assertIsNotNone(result)
         self.assertEqual(len(result), 2)
-        self.assertEqual(result[0]["fnr"], "2011134")
+        self.assertEqual(result[0]["fnr"], "F2011134")
         self.assertEqual(result[0]["anr"], "01 0101")
         self.assertAlmostEqual(float(result[0]["size"]), 68.5)
 
