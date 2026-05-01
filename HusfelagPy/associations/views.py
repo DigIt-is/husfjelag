@@ -2285,6 +2285,7 @@ def _scrape_urls_parallel(urls):
     scraped_by_fnr is a dict {fnr: apt_dict}. error_detail is a string
     describing the first failure, or None if all succeeded.
     """
+    import bugsnag
     scraped_by_fnr = {}
     with ThreadPoolExecutor(max_workers=len(urls)) as executor:
         futures = {executor.submit(scrape_hms_apartments, url): url for url in urls}
@@ -2293,6 +2294,11 @@ def _scrape_urls_parallel(urls):
             try:
                 result = future.result()
             except HmsScrapeError as exc:
+                bugsnag.notify(
+                    exc,
+                    context="hms:scrape_apartments",
+                    extra_data={"url": url, "hms_status_code": exc.status_code},
+                )
                 return None, str(exc)
             for apt in result:
                 scraped_by_fnr[apt["fnr"]] = apt
