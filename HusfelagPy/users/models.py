@@ -16,5 +16,11 @@ class User(models.Model):
     class Meta:
         db_table = "users_user"
 
+    def get_full_name(self):
+        return self.name
+
+    def get_short_name(self):
+        return self.name.split()[0] if self.name else ""
+
     def __str__(self):
         return f"{self.name} ({self.kennitala})"
