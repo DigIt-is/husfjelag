@@ -2367,14 +2367,17 @@ class ApartmentImportPreviewView(APIView):
         for fnr, scraped in scraped_by_fnr.items():
             if fnr in existing:
                 db_apt = existing[fnr]
-                update_list.append({
-                    "id": db_apt.id,
-                    "fnr": fnr,
-                    "anr": scraped["anr"],
-                    "size": scraped["size"],
-                    "current_anr": db_apt.anr,
-                    "current_size": float(db_apt.size),
-                })
+                anr_changed = scraped["anr"] != db_apt.anr
+                size_changed = round(scraped["size"], 2) != float(db_apt.size)
+                if anr_changed or size_changed:
+                    update_list.append({
+                        "id": db_apt.id,
+                        "fnr": fnr,
+                        "anr": scraped["anr"],
+                        "size": scraped["size"],
+                        "current_anr": db_apt.anr,
+                        "current_size": float(db_apt.size),
+                    })
             else:
                 create_list.append({"fnr": fnr, "anr": scraped["anr"], "size": scraped["size"]})
 
@@ -2433,13 +2436,16 @@ class ApartmentImportConfirmView(APIView):
             ]
             Apartment.objects.bulk_create(to_create)
 
-            # Update existing apartments
+            # Update existing apartments — only write if something actually changed
             for fnr, data in scraped_by_fnr.items():
                 if fnr in existing:
                     apt = existing[fnr]
-                    apt.anr = data["anr"]
-                    apt.size = data["size"]
-                    apt.save(update_fields=["anr", "size"])
+                    anr_changed = data["anr"] != apt.anr
+                    size_changed = round(data["size"], 2) != float(apt.size)
+                    if anr_changed or size_changed:
+                        apt.anr = data["anr"]
+                        apt.size = data["size"]
+                        apt.save(update_fields=["anr", "size"])
 
             # Soft-delete requested apartments
             if deactivate_ids:
