@@ -131,21 +131,33 @@ def scrape_hms_apartments(url: str) -> list[dict]:
     Raises HmsScrapeError on connection failure or non-200 response.
     """
     import logging
+    import time
     logger = logging.getLogger(__name__)
 
     # Extract stadfang_id from the URL path (last segment)
     stadfang_id = url.rstrip("/").split("/")[-1]
 
     api_url = f"https://hms.is/api/fasteignaskra/stadfang/{stadfang_id}?page=0&pageSize=200"
-    try:
-        resp = requests.get(
-            api_url,
-            timeout=15,
-            headers={"User-Agent": "Mozilla/5.0", "Referer": "https://hms.is/"},
-        )
-    except requests.RequestException as exc:
-        logger.error("HMS scrape connection error for %s: %s", url, exc)
-        raise HmsScrapeError(f"Connection error: {exc}") from exc
+
+    def _fetch():
+        try:
+            return requests.get(
+                api_url,
+                timeout=15,
+                headers={"User-Agent": "Mozilla/5.0", "Referer": "https://hms.is/"},
+            )
+        except requests.RequestException as exc:
+            logger.error("HMS scrape connection error for %s: %s", url, exc)
+            raise HmsScrapeError(f"Connection error: {exc}") from exc
+
+    resp = _fetch()
+
+    # 429 Too Many Requests — wait and retry once
+    if resp.status_code == 429:
+        retry_after = min(int(resp.headers.get("Retry-After", 2)), 10)
+        logger.warning("HMS rate-limited (429) for %s — retrying in %ss", url, retry_after)
+        time.sleep(retry_after)
+        resp = _fetch()
 
     if resp.status_code != 200:
         logger.error("HMS scrape HTTP %s for %s — body: %.200s", resp.status_code, url, resp.text)
