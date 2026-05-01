@@ -406,7 +406,7 @@ function OwnersPage() {
 
                     <Box sx={{ mt: 2, fontSize: 12, color: TEXT_SECONDARY, display: 'flex', alignItems: 'center', gap: 1 }}>
                         <span style={{ fontSize: 15, color: TEXT_DISABLED }}>ℹ</span>
-                        Greiðandi á sér eitt val per íbúð — sá sem fær reikninga húsfélagsins.
+                        Einn eigandi er merktur greiðandi fyrir íbúð — sá aðili sem fær reikninga frá húsfélaginu.
                     </Box>
                 </Box>
             </Box>
