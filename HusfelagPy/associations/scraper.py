@@ -176,7 +176,9 @@ def scrape_hms_apartments(url: str) -> list[dict]:
 
     results = []
     for apt in fasteignir:
-        fnr = str(apt.get("fasteign_nr", ""))
+        raw_fnr = str(apt.get("fasteign_nr", ""))
+        # HMS uses "F" prefix for Fasteignanúmer (e.g. F2510086)
+        fnr = f"F{raw_fnr}" if raw_fnr else ""
         merking = apt.get("merking", "")
         # Display format: "010101" → "01 0101"
         anr = f"{merking[:2]} {merking[2:]}" if len(merking) >= 3 else merking

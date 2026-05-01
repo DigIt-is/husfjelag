@@ -46,7 +46,7 @@ class AssociationAccess(models.Model):
 
 class Apartment(models.Model):
     association = models.ForeignKey(Association, on_delete=models.CASCADE, related_name="apartments")
-    fnr = models.CharField(max_length=8)   # Fasteignanúmer (government property ID)
+    fnr = models.CharField(max_length=12)   # Fasteignanúmer (government property ID, e.g. F2510086)
     anr = models.CharField(max_length=7)   # Merking (apartment identifier)
     size = models.DecimalField(max_digits=8, decimal_places=2, default=0)  # Flatarmál í m²
     share = models.DecimalField(max_digits=5, decimal_places=2, default=0)    # Matshlutfall skv. eignaskiptasamningi
