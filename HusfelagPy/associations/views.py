@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from decimal import Decimal, ROUND_DOWN
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -2279,6 +2280,24 @@ class AdminStatsView(APIView):
 HMS_URL_RE = re.compile(r'^https://hms\.is/fasteignaskra/\d+/\d+$')
 
 
+def _scrape_urls_parallel(urls):
+    """Fetch all HMS URLs concurrently. Returns (scraped_by_fnr, failed_url).
+    scraped_by_fnr is a dict {fnr: apt_dict}. failed_url is the first URL
+    that returned None (connection error), or None if all succeeded.
+    """
+    scraped_by_fnr = {}
+    with ThreadPoolExecutor(max_workers=len(urls)) as executor:
+        futures = {executor.submit(scrape_hms_apartments, url): url for url in urls}
+        for future in as_completed(futures):
+            url = futures[future]
+            result = future.result()
+            if result is None:
+                return None, url
+            for apt in result:
+                scraped_by_fnr[apt["fnr"]] = apt
+    return scraped_by_fnr, None
+
+
 class ApartmentImportSourcesView(APIView):
     def get(self, request):
         """GET /Apartment/import/sources?user_id=N — Return saved HMS URLs for the association."""
@@ -2320,17 +2339,13 @@ class ApartmentImportPreviewView(APIView):
         if err:
             return err
 
-        # Scrape and merge all URLs, deduplicate by fnr
-        scraped_by_fnr = {}
-        for url in urls:
-            result = scrape_hms_apartments(url)
-            if result is None:
-                return Response(
-                    {"detail": "Ekki tókst að ná sambandi við HMS. Reyndu aftur síðar."},
-                    status=status.HTTP_502_BAD_GATEWAY
-                )
-            for apt in result:
-                scraped_by_fnr[apt["fnr"]] = apt
+        # Scrape all URLs in parallel, deduplicate by fnr
+        scraped_by_fnr, failed = _scrape_urls_parallel(urls)
+        if failed is not None:
+            return Response(
+                {"detail": "Ekki tókst að ná sambandi við HMS. Reyndu aftur síðar."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
 
         # Compare against existing DB apartments for this association
         existing = {
@@ -2392,17 +2407,13 @@ class ApartmentImportConfirmView(APIView):
         if err:
             return err
 
-        # Re-scrape (don't trust client preview)
-        scraped_by_fnr = {}
-        for url in urls:
-            result = scrape_hms_apartments(url)
-            if result is None:
-                return Response(
-                    {"detail": "Ekki tókst að ná sambandi við HMS. Reyndu aftur síðar."},
-                    status=status.HTTP_502_BAD_GATEWAY
-                )
-            for apt in result:
-                scraped_by_fnr[apt["fnr"]] = apt
+        # Re-scrape in parallel (don't trust client preview)
+        scraped_by_fnr, failed = _scrape_urls_parallel(urls)
+        if failed is not None:
+            return Response(
+                {"detail": "Ekki tókst að ná sambandi við HMS. Reyndu aftur síðar."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
 
         existing = {apt.fnr: apt for apt in association.apartments.filter(deleted=False)}
 
