@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
     Box, Typography, CircularProgress, Paper,
     Button, TextField, Collapse, IconButton,
-    Dialog, DialogTitle, DialogContent, DialogActions,
-    Alert, Divider, Tooltip, DialogContentText,
-    FormControlLabel, Checkbox,
+    Dialog, DialogActions,
+    Alert, Tooltip, DialogContentText,
+    InputAdornment,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import CloseIcon from '@mui/icons-material/Close';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
@@ -16,21 +17,37 @@ import { useHelp } from '../ui/HelpContext';
 import { UserContext } from './UserContext';
 import { apiFetch } from '../api';
 import SideBar from './Sidebar';
-import { fmtPct, fmtKennitala } from '../format';
+import { fmtPct } from '../format';
 import { primaryButtonSx, secondaryButtonSx, ghostButtonSx, destructiveButtonSx } from '../ui/buttons';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
+
+/* ── Page-level tokens ──────────────────────────────────────────── */
 const NAVY = '#1D366F';
 const GREEN = '#08C076';
 const BORDER = '#e8e8e8';
 const BORDER_ROW = '#f2f2f2';
 const COLS = '110px 140px 90px 80px 80px 80px minmax(200px, 1fr) 44px';
 
+/* ── Dialog tokens ──────────────────────────────────────────────── */
+const DLGBORDER   = '#e8e8e8';
+const DLGNAVY     = '#1D366F';
+const DLGNAVYTINT = '#eef1f8';
+const DLGGREEN    = '#08C076';
+const DLGGREENTINT = '#e8f5e9';
+const DLGTEXT2    = '#555';
+const DLGDIS      = '#888';
+const DLGWARN     = '#e65100';
+const DLGPOS      = '#2e7d32';
+const DLGBGTB     = '#fafafa';
+
+/* ── Helpers ────────────────────────────────────────────────────── */
 function getInitials(name) {
     const words = (name || '').trim().split(/\s+/);
     return words.slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
 }
 
+/* ── Page components ────────────────────────────────────────────── */
 function OwnerPill({ o }) {
     const isGreen = o.is_payer;
     const bg = isGreen ? 'rgba(8,192,118,0.12)' : 'rgba(29,54,111,0.10)';
@@ -56,9 +73,7 @@ function OwnerPill({ o }) {
                     background: GREEN, color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 9, fontWeight: 700, ml: '-4px',
-                }}>
-                    kr
-                </Box>
+                }}>kr</Box>
             )}
         </Box>
     );
@@ -136,9 +151,9 @@ function ApartmentsPage() {
         [totalShare, totalShare2, totalShare3].every(v => Math.abs(v - 100) < 0.01);
 
     const KPIS = [
-        { label: 'HLUTFALL', val: totalShare,  hint: 'Almennur rekstur', desc: 'Skipt eftir eignarhluta í þinglýstu skjali.' },
-        { label: 'HITI',     val: totalShare2, hint: 'Hitakostnaður',    desc: 'Eftir m² eða mæli — fer eftir samningi.' },
-        { label: 'LÓÐ',      val: totalShare3, hint: 'Lóðarframlag',     desc: 'Skipt eftir lóðarmældum hluta.' },
+        { label: 'HLUTFALL', val: totalShare,  hint: 'Almennur rekstur',  desc: 'Skipt eftir eignarhluta í þinglýstu skjali.' },
+        { label: 'HITI',     val: totalShare2, hint: 'Hitakostnaður',     desc: 'Eftir m² eða mæli — fer eftir samningi.' },
+        { label: 'LÓÐ',      val: totalShare3, hint: 'Lóðarframlag',      desc: 'Skipt eftir lóðarmældum hluta.' },
     ];
 
     return (
@@ -202,18 +217,13 @@ function ApartmentsPage() {
                         <>
                             {/* KPI strip */}
                             <Box sx={{
-                                display: 'grid',
-                                gridTemplateColumns: '0.95fr 1fr 1fr 1fr',
-                                border: `1px solid ${BORDER}`,
-                                borderRadius: 2,
-                                overflow: 'hidden',
-                                mb: 2,
+                                display: 'grid', gridTemplateColumns: '0.95fr 1fr 1fr 1fr',
+                                border: `1px solid ${BORDER}`, borderRadius: 2,
+                                overflow: 'hidden', mb: 2,
                             }}>
                                 <Box sx={{
-                                    px: 2.25, py: 1.75,
-                                    background: '#fafafa',
-                                    borderRight: `1px solid ${BORDER}`,
-                                    display: 'flex', flexDirection: 'column',
+                                    px: 2.25, py: 1.75, background: '#fafafa',
+                                    borderRight: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column',
                                 }}>
                                     <Typography sx={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', color: NAVY, textTransform: 'uppercase', mb: 0.75 }}>
                                         EIGNARHLUTFÖLL
@@ -231,7 +241,6 @@ function ApartmentsPage() {
                                         </Typography>
                                     </Box>
                                 </Box>
-
                                 {KPIS.map((c, i) => (
                                     <Box key={i} sx={{
                                         px: 2.25, py: 1.75,
@@ -267,7 +276,6 @@ function ApartmentsPage() {
                                         onSaved={loadApartments}
                                     />
                                 ))}
-                                {/* Totals footer */}
                                 <Box sx={{
                                     display: 'grid', gridTemplateColumns: COLS,
                                     px: 2.25, py: 1.5,
@@ -296,7 +304,6 @@ function ApartmentsPage() {
                                 </Box>
                             </Paper>
 
-                            {/* Legend + inactive toggle */}
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                                     <Box sx={{
@@ -314,7 +321,6 @@ function ApartmentsPage() {
                                 )}
                             </Box>
 
-                            {/* Inactive apartments */}
                             {disabled.length > 0 && (
                                 <Collapse in={showDisabled}>
                                     <Paper variant="outlined" sx={{ mt: 1, overflow: 'hidden' }}>
@@ -421,9 +427,65 @@ function ApartmentRowV1({ apt, apartments, isLast, onOwnersChanged, onSaved, isD
     );
 }
 
-// ─── Dialogs (unchanged) ─────────────────────────────────────────────────────
+/* ── Dialog primitives ──────────────────────────────────────────── */
 
-function ShareField({ label, value, onChange, helperText, error, disabled }) {
+function DlgSection({ children, hint }) {
+    return (
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mt: 2.5, mb: 1.25 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: DLGDIS }}>
+                {children}
+            </span>
+            {hint && <span style={{ fontSize: 12, color: DLGTEXT2 }}>{hint}</span>}
+        </Box>
+    );
+}
+
+function CtxChip({ children, color = 'navy' }) {
+    const bg = color === 'green' ? DLGGREENTINT : DLGNAVYTINT;
+    const fg = color === 'green' ? DLGPOS : DLGNAVY;
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '3px 9px', borderRadius: 999, background: bg, color: fg,
+            fontSize: 11.5, fontWeight: 600,
+        }}>
+            {children}
+        </span>
+    );
+}
+
+function ToggleRow({ on, onToggle, onLabel, offLabel, hint, children }) {
+    return (
+        <div style={{ border: `1px solid ${DLGBORDER}`, borderRadius: 8, padding: '12px 14px', background: on ? '#fff' : DLGBGTB }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    style={{
+                        width: 32, height: 18, borderRadius: 999, border: 'none',
+                        background: on ? DLGNAVY : '#cfd2d8',
+                        position: 'relative', cursor: 'pointer', padding: 0, flexShrink: 0,
+                        transition: 'background 150ms',
+                    }}
+                >
+                    <span style={{
+                        position: 'absolute', top: 2, left: on ? 16 : 2,
+                        width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                        transition: 'left 150ms', display: 'block',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                    }} />
+                </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 500 }}>{on ? onLabel : offLabel}</div>
+                    {hint && <div style={{ fontSize: 12, color: DLGTEXT2, marginTop: 2 }}>{hint}</div>}
+                </div>
+            </div>
+            {on && children && <div style={{ marginTop: 12 }}>{children}</div>}
+        </div>
+    );
+}
+
+function SharePctField({ label, value, onChange, error, helperText }) {
     return (
         <TextField
             label={label}
@@ -432,56 +494,51 @@ function ShareField({ label, value, onChange, helperText, error, disabled }) {
             size="small"
             type="number"
             inputProps={{ min: 0, max: 100, step: 0.01 }}
+            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
             helperText={helperText}
             error={!!error}
-            disabled={disabled}
-            FormHelperTextProps={{ sx: { whiteSpace: 'normal' } }}
             fullWidth
         />
     );
 }
 
-function SameShareCheckbox({ checked, onChange }) {
-    return (
-        <FormControlLabel
-            control={<Checkbox checked={checked} onChange={e => onChange(e.target.checked)} size="small" color="secondary" sx={{ py: 0 }} />}
-            label={<Typography variant="caption" color="text.secondary">Nota matshlutfall</Typography>}
-            sx={{ mt: -0.5, ml: 0.5 }}
-        />
-    );
-}
-
+/* ── AddApartmentDialog ─────────────────────────────────────────── */
 function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onCreated }) {
     const [anr, setAnr] = useState('');
     const [fnr, setFnr] = useState('');
     const [size, setSize] = useState('');
     const [share, setShare] = useState('');
     const [share2, setShare2] = useState('');
-    const [share2Same, setShare2Same] = useState(false);
+    const [share2Custom, setShare2Custom] = useState(false);
     const [share3, setShare3] = useState('');
-    const [share3Same, setShare3Same] = useState(false);
+    const [share3Custom, setShare3Custom] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
     React.useEffect(() => {
         if (!open) {
             setAnr(''); setFnr(''); setSize(''); setShare('');
-            setShare2(''); setShare2Same(false);
-            setShare3(''); setShare3Same(false);
+            setShare2(''); setShare2Custom(false);
+            setShare3(''); setShare3Custom(false);
             setSaving(false); setError('');
         }
     }, [open]);
 
-    const eff2 = share2Same ? share : share2;
-    const eff3 = share3Same ? share : share3;
+    const eff2 = share2Custom ? share2 : share;
+    const eff3 = share3Custom ? share3 : share;
 
-    const existingShare  = apartments.reduce((s, a) => s + parseFloat(a.share  || 0), 0);
+    const existingShare  = apartments.reduce((s, a) => s + parseFloat(a.share   || 0), 0);
     const existingShare2 = apartments.reduce((s, a) => s + parseFloat(a.share_2 || 0), 0);
     const existingShare3 = apartments.reduce((s, a) => s + parseFloat(a.share_3 || 0), 0);
     const round2 = n => Math.round(n * 100) / 100;
     const shareOver  = parseFloat(share)  > 0 && round2(existingShare  + parseFloat(share))  > 100;
     const share2Over = parseFloat(eff2)   > 0 && round2(existingShare2 + parseFloat(eff2))   > 100;
     const share3Over = parseFloat(eff3)   > 0 && round2(existingShare3 + parseFloat(eff3))   > 100;
+
+    const totalShare  = round2(existingShare  + parseFloat(share  || 0));
+    const totalShare2 = round2(existingShare2 + parseFloat(eff2   || 0));
+    const totalShare3 = round2(existingShare3 + parseFloat(eff3   || 0));
+    const allOk = totalShare === 100 && totalShare2 === 100 && totalShare3 === 100;
 
     const isValid = anr.trim() && fnr.trim()
         && parseFloat(share) >= 0 && parseFloat(eff2) >= 0 && parseFloat(eff3) >= 0
@@ -493,61 +550,126 @@ function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onC
             const resp = await apiFetch(`${API_URL}/Apartment${assocParam}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, anr, fnr, size: parseFloat(size) || 0, share: parseFloat(share) || 0, share_2: parseFloat(eff2) || 0, share_3: parseFloat(eff3) || 0 }),
+                body: JSON.stringify({
+                    user_id: userId, anr, fnr,
+                    size: parseFloat(size) || 0,
+                    share: parseFloat(share) || 0,
+                    share_2: parseFloat(eff2) || 0,
+                    share_3: parseFloat(eff3) || 0,
+                }),
             });
             if (resp.ok) { onCreated(await resp.json()); }
-            else { const d = await resp.json(); setError(d.detail || 'Villa við skráningu.'); }
-        } catch { setError('Tenging við þjón mistókst.'); }
-        finally { setSaving(false); }
+            else { const data = await resp.json(); setError(data.detail || 'Villa við skráningu.'); }
+        } catch {
+            setError('Tenging við þjón mistókst.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-            <DialogTitle sx={{ pb: 0.5 }}>
-                Skrá nýja íbúð
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 400, mt: 0.5 }}>
-                    Íbúðin verður bætt við húsfélagið
-                </Typography>
-            </DialogTitle>
-            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-                <Box sx={{ display: 'flex', gap: 2 }}>
+        <Dialog open={open} onClose={onClose} maxWidth={false}
+            PaperProps={{ sx: { width: 680, maxWidth: '95vw', borderRadius: '12px', overflow: 'hidden' } }}
+        >
+            <Box sx={{ p: '20px 24px 16px', borderBottom: `1px solid ${DLGBORDER}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Box>
+                    <Typography sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.25 }}>Skrá nýja íbúð</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Íbúðin verður bætt við húsfélagið — hlutföll verður að setja upp handvirkt.
+                    </Typography>
+                </Box>
+                <IconButton size="small" onClick={onClose} sx={{ mt: -0.5 }}>
+                    <CloseIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+            </Box>
+
+            <Box sx={{ p: '20px 24px', overflowY: 'auto' }}>
+                <DlgSection hint="Eins og þau birtast í Þjóðskrá / FMR">Auðkenni</DlgSection>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
                     <TextField label="Merking" value={anr} onChange={e => setAnr(e.target.value)} size="small" fullWidth />
-                    <TextField label="Fastanúmer" value={fnr} onChange={e => setFnr(e.target.value)} size="small" fullWidth />
+                    <TextField label="Fastanúmer" value={fnr} onChange={e => setFnr(e.target.value)} size="small" fullWidth
+                        inputProps={{ style: { fontFamily: 'monospace' } }} />
                 </Box>
-                <TextField label="Stærð (m²)" value={size} onChange={e => setSize(e.target.value.replace(/[^0-9.]/g, ''))} size="small" type="number" inputProps={{ min: 0, step: 0.01 }} helperText="Flatarmál íbúðar í fermetrum" fullWidth />
-                <ShareField label="Matshlutfall (%)" value={share} onChange={setShare} helperText="Matshluti hverrar íbúðar skv. eignaskiptasamningi" error={shareOver ? 'Heildarhlutfall fer yfir 100%' : ''} />
-                {shareOver && <Alert severity="error" sx={{ mt: -1 }}>Heildarhlutfall (share) myndi fara yfir 100%</Alert>}
-                <Box>
-                    <ShareField label="Matshlutfall hita (%)" value={eff2} onChange={setShare2} helperText="Matshluti hita skv. eignaskiptasamningi" error={share2Over ? 'Heildarhlutfall fer yfir 100%' : ''} disabled={share2Same} />
-                    <SameShareCheckbox checked={share2Same} onChange={setShare2Same} />
+
+                <DlgSection hint="Grunnur sem hin hlutföllin nota sjálfgefið">Stærð og grunnhlutfall</DlgSection>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                    <TextField
+                        label="Stærð" value={size}
+                        onChange={e => setSize(e.target.value.replace(/[^0-9.]/g, ''))}
+                        size="small" type="number" inputProps={{ min: 0, step: 0.01 }}
+                        InputProps={{ endAdornment: <InputAdornment position="end">m²</InputAdornment> }}
+                        fullWidth
+                    />
+                    <SharePctField
+                        label="Matshlutfall" value={share} onChange={setShare}
+                        helperText="Skv. eignaskiptasamningi" error={shareOver}
+                    />
                 </Box>
-                {share2Over && <Alert severity="error" sx={{ mt: -1 }}>Heildarhlutfall (share 2) myndi fara yfir 100%</Alert>}
-                <Box>
-                    <ShareField label="Matshlutfall lóðar (%)" value={eff3} onChange={setShare3} helperText="Matshluti lóðar skv. eignaskiptasamningi" error={share3Over ? 'Heildarhlutfall fer yfir 100%' : ''} disabled={share3Same} />
-                    <SameShareCheckbox checked={share3Same} onChange={setShare3Same} />
+                {shareOver && <Alert severity="error" sx={{ mt: 1 }}>Heildarhlutfall (matshlutfall) myndi fara yfir 100%</Alert>}
+
+                <DlgSection hint="Aðeins nauðsynlegt ef hiti eða lóð er reiknuð öðruvísi en grunnhlutfall">Sérstök hlutföll</DlgSection>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                    <ToggleRow on={share2Custom} onToggle={() => setShare2Custom(v => !v)}
+                        onLabel="Hiti — sérstakt hlutfall"
+                        offLabel={`Hiti — fylgir grunnhlutfalli (${share || 0}%)`}
+                        hint={share2Custom ? 'Reiknað eftir mæli, ekki eignahlut.' : 'Smelltu til að setja annað gildi.'}
+                    >
+                        <SharePctField label="Matshlutfall hita" value={share2} onChange={setShare2} error={share2Over} />
+                    </ToggleRow>
+                    <ToggleRow on={share3Custom} onToggle={() => setShare3Custom(v => !v)}
+                        onLabel="Lóð — sérstakt hlutfall"
+                        offLabel={`Lóð — fylgir grunnhlutfalli (${share || 0}%)`}
+                        hint="Smelltu til að setja annað gildi."
+                    >
+                        <SharePctField label="Matshlutfall lóðar" value={share3} onChange={setShare3} error={share3Over} />
+                    </ToggleRow>
                 </Box>
-                {share3Over && <Alert severity="error" sx={{ mt: -1 }}>Heildarhlutfall (share 3) myndi fara yfir 100%</Alert>}
-                {error && <Alert severity="error">{error}</Alert>}
-            </DialogContent>
-            <DialogActions sx={{ px: 3, pb: 2.5, justifyContent: 'flex-end' }}>
+                {(share2Over || share3Over) && (
+                    <Alert severity="error" sx={{ mt: 1 }}>
+                        {share2Over && 'Heildarhlutfall hita fer yfir 100%. '}
+                        {share3Over && 'Heildarhlutfall lóðar fer yfir 100%.'}
+                    </Alert>
+                )}
+
+                {(share || eff2 || eff3) && (
+                    <Box sx={{ mt: 2.25, p: '10px 14px', borderRadius: 1, background: DLGNAVYTINT, display: 'flex', alignItems: 'center', gap: 1.5, fontSize: '12.5px' }}>
+                        <Box sx={{ flex: 1 }}>
+                            Eftir vistun:{' '}
+                            <strong style={{ fontFamily: 'monospace' }}>Hlutfall {totalShare.toFixed(2)}%</strong>
+                            {' · '}
+                            <strong style={{ fontFamily: 'monospace' }}>Hiti {totalShare2.toFixed(2)}%</strong>
+                            {' · '}
+                            <strong style={{ fontFamily: 'monospace' }}>Lóð {totalShare3.toFixed(2)}%</strong>
+                        </Box>
+                        {allOk
+                            ? <span style={{ color: DLGPOS, fontWeight: 600, whiteSpace: 'nowrap' }}>✓ Allir lyklar = 100%</span>
+                            : <span style={{ color: DLGWARN, fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap' }}>Ekki allir lyklar = 100%</span>
+                        }
+                    </Box>
+                )}
+                {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
+            </Box>
+
+            <Box sx={{ p: '14px 20px', borderTop: `1px solid ${DLGBORDER}`, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                 <Button sx={ghostButtonSx} onClick={onClose}>Hætta við</Button>
                 <Button variant="contained" sx={primaryButtonSx} disabled={!isValid || saving} onClick={handleSubmit}>
                     {saving ? <CircularProgress size={18} color="inherit" /> : 'Skrá íbúð'}
                 </Button>
-            </DialogActions>
+            </Box>
         </Dialog>
     );
 }
 
+/* ── EditApartmentDialog ────────────────────────────────────────── */
 function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSaved, onDeleted }) {
     const [anr, setAnr] = useState(apt.anr);
     const [fnr, setFnr] = useState(apt.fnr);
     const [size, setSize] = useState(String(apt.size || ''));
     const [share, setShare] = useState(String(apt.share));
     const [share2, setShare2] = useState(String(apt.share_2));
-    const [share2Same, setShare2Same] = useState(false);
+    const [share2Custom, setShare2Custom] = useState(false);
     const [share3, setShare3] = useState(String(apt.share_3));
-    const [share3Same, setShare3Same] = useState(false);
+    const [share3Custom, setShare3Custom] = useState(false);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -555,23 +677,33 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
 
     React.useEffect(() => {
         if (open) {
-            setAnr(apt.anr); setFnr(apt.fnr); setSize(String(apt.size || ''));
-            setShare(String(apt.share)); setShare2(String(apt.share_2)); setShare3(String(apt.share_3));
-            setShare2Same(false); setShare3Same(false); setError('');
+            setAnr(apt.anr); setFnr(apt.fnr);
+            setSize(String(apt.size || ''));
+            setShare(String(apt.share));
+            setShare2(String(apt.share_2));
+            setShare3(String(apt.share_3));
+            setShare2Custom(Math.abs(parseFloat(apt.share_2 || 0) - parseFloat(apt.share || 0)) > 0.005);
+            setShare3Custom(Math.abs(parseFloat(apt.share_3 || 0) - parseFloat(apt.share || 0)) > 0.005);
+            setError('');
         }
     }, [open, apt]);
 
-    const eff2 = share2Same ? share : share2;
-    const eff3 = share3Same ? share : share3;
+    const eff2 = share2Custom ? share2 : share;
+    const eff3 = share3Custom ? share3 : share;
 
     const others = apartments.filter(a => a.id !== apt.id);
-    const otherShare  = others.reduce((s, a) => s + parseFloat(a.share  || 0), 0);
+    const otherShare  = others.reduce((s, a) => s + parseFloat(a.share   || 0), 0);
     const otherShare2 = others.reduce((s, a) => s + parseFloat(a.share_2 || 0), 0);
     const otherShare3 = others.reduce((s, a) => s + parseFloat(a.share_3 || 0), 0);
     const round2 = n => Math.round(n * 100) / 100;
-    const shareOver  = parseFloat(share)  >= 0 && round2(otherShare  + parseFloat(share))  > 100;
-    const share2Over = parseFloat(eff2)   >= 0 && round2(otherShare2 + parseFloat(eff2))   > 100;
-    const share3Over = parseFloat(eff3)   >= 0 && round2(otherShare3 + parseFloat(eff3))   > 100;
+    const shareOver  = round2(otherShare  + parseFloat(share  || 0)) > 100;
+    const share2Over = round2(otherShare2 + parseFloat(eff2   || 0)) > 100;
+    const share3Over = round2(otherShare3 + parseFloat(eff3   || 0)) > 100;
+
+    const totalShare  = round2(otherShare  + parseFloat(share  || 0));
+    const totalShare2 = round2(otherShare2 + parseFloat(eff2   || 0));
+    const totalShare3 = round2(otherShare3 + parseFloat(eff3   || 0));
+    const allOk = totalShare === 100 && totalShare2 === 100 && totalShare3 === 100;
 
     const isValid = anr.trim() && fnr.trim()
         && parseFloat(share) >= 0 && parseFloat(eff2) >= 0 && parseFloat(eff3) >= 0
@@ -582,11 +714,12 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
     const handleSave = async () => {
         setError(''); setSaving(true);
         try {
-            const resp = await apiFetch(`${API_URL}/Apartment/update/${apt.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const resp = await apiFetch(`${API_URL}/Apartment/update/${apt.id}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+            });
             if (resp.ok) { onSaved(); }
-            else { const d = await resp.json(); setError(d.detail || 'Villa við uppfærslu.'); }
-        } catch { setError('Tenging við þjón mistókst.'); }
-        finally { setSaving(false); }
+            else { const data = await resp.json(); setError(data.detail || 'Villa við uppfærslu.'); }
+        } catch { setError('Tenging við þjón mistókst.'); } finally { setSaving(false); }
     };
 
     const handleDisable = async () => {
@@ -594,82 +727,153 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
         try {
             const resp = await apiFetch(`${API_URL}/Apartment/delete/${apt.id}`, { method: 'DELETE' });
             if (resp.ok) { setConfirmDelete(false); onDeleted(); }
-            else { const d = await resp.json(); setError(d.detail || 'Villa við óvirkjun.'); setConfirmDelete(false); }
-        } catch { setError('Tenging við þjón mistókst.'); setConfirmDelete(false); }
-        finally { setDeleting(false); }
+            else { const data = await resp.json(); setError(data.detail || 'Villa við óvirkjun.'); setConfirmDelete(false); }
+        } catch { setError('Tenging við þjón mistókst.'); setConfirmDelete(false); } finally { setDeleting(false); }
     };
 
     const handleEnable = async () => {
         setError(''); setSaving(true);
         try {
-            const resp = await apiFetch(`${API_URL}/Apartment/enable/${apt.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const resp = await apiFetch(`${API_URL}/Apartment/enable/${apt.id}`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+            });
             if (resp.ok) { onSaved(); }
-            else { const d = await resp.json(); setError(d.detail || 'Villa við virkjun.'); }
-        } catch { setError('Tenging við þjón mistókst.'); }
-        finally { setSaving(false); }
+            else { const data = await resp.json(); setError(data.detail || 'Villa við virkjun.'); }
+        } catch { setError('Tenging við þjón mistókst.'); } finally { setSaving(false); }
     };
 
     return (
         <>
-            <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-                <DialogTitle>{isDisabled ? `Óvirk íbúð — ${apt.anr}` : `Breyta íbúð — ${apt.anr}`}</DialogTitle>
-                <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-                    <Box>
-                        <Typography variant="body1" fontWeight={500}>{apt.anr}</Typography>
-                        <Typography variant="body2" color="text.secondary">Fastanúmer: {apt.fnr}</Typography>
+        <Dialog open={open} onClose={onClose} maxWidth={false}
+            PaperProps={{ sx: { width: 680, maxWidth: '95vw', borderRadius: '12px', overflow: 'hidden' } }}
+        >
+            <Box sx={{ p: '20px 24px 16px', borderBottom: `1px solid ${DLGBORDER}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Box>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 0.75, alignItems: 'center' }}>
+                        <CtxChip>Íbúð</CtxChip>
                     </Box>
-                    <TextField label="Merking" value={anr} onChange={e => setAnr(e.target.value)} size="small" fullWidth />
-                    <TextField label="Fastanúmer" value={fnr} onChange={e => setFnr(e.target.value)} size="small" fullWidth />
-                    <TextField label="Stærð (m²)" value={size} onChange={e => setSize(e.target.value.replace(/[^0-9.]/g, ''))} size="small" type="number" inputProps={{ min: 0, step: 0.01 }} helperText="Flatarmál íbúðar í fermetrum" fullWidth />
-                    <ShareField label="Matshlutfall (%)" value={share} onChange={setShare} helperText="Matshluti hverrar íbúðar skv. eignaskiptasamningi" error={shareOver} />
-                    {shareOver && <Alert severity="error" sx={{ mt: -1 }}>Heildarhlutfall (share) myndi fara yfir 100%</Alert>}
-                    <Box>
-                        <ShareField label="Matshlutfall hita (%)" value={eff2} onChange={setShare2} helperText="Matshluti hita skv. eignaskiptasamningi" error={share2Over} disabled={share2Same} />
-                        <SameShareCheckbox checked={share2Same} onChange={setShare2Same} />
-                    </Box>
-                    {share2Over && <Alert severity="error" sx={{ mt: -1 }}>Heildarhlutfall (share 2) myndi fara yfir 100%</Alert>}
-                    <Box>
-                        <ShareField label="Matshlutfall lóðar (%)" value={eff3} onChange={setShare3} helperText="Matshluti lóðar skv. eignaskiptasamningi" error={share3Over} disabled={share3Same} />
-                        <SameShareCheckbox checked={share3Same} onChange={setShare3Same} />
-                    </Box>
-                    {share3Over && <Alert severity="error" sx={{ mt: -1 }}>Heildarhlutfall (share 3) myndi fara yfir 100%</Alert>}
-                    {error && <Alert severity="error">{error}</Alert>}
-                </DialogContent>
-                <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
-                    <Box>
-                        {!isDisabled && (
-                            <Button sx={{ ...destructiveButtonSx, fontSize: '0.8rem' }} onClick={() => setConfirmDelete(true)}>
-                                Óvirkja íbúð
-                            </Button>
-                        )}
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button sx={ghostButtonSx} onClick={onClose}>Hætta við</Button>
-                        <Button variant="contained" sx={primaryButtonSx} disabled={!isValid || saving} onClick={isDisabled ? handleEnable : handleSave}>
-                            {saving ? <CircularProgress size={18} color="inherit" /> : isDisabled ? 'Virkja íbúð' : 'Vista'}
-                        </Button>
-                    </Box>
-                </DialogActions>
-            </Dialog>
+                    <Typography sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.25 }}>
+                        {isDisabled ? `Óvirk íbúð — ${apt.anr}` : `Breyta íbúð ${apt.anr}`}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Skipulagslegir reitir — breytast sjaldan og hafa áhrif á reikningagerð fyrir alla eigendur.
+                    </Typography>
+                </Box>
+                <IconButton size="small" onClick={onClose} sx={{ mt: -0.5 }}>
+                    <CloseIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+            </Box>
 
-            <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Óvirkja íbúð</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Ertu viss um að þú viljir óvirkja íbúð <strong>{apt.anr}</strong>?
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button sx={ghostButtonSx} onClick={() => setConfirmDelete(false)}>Hætta við</Button>
-                    <Button sx={destructiveButtonSx} disabled={deleting} onClick={handleDisable}>
-                        {deleting ? <CircularProgress size={18} color="inherit" /> : 'Já, óvirkja'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <Box sx={{ p: '20px 24px', overflowY: 'auto' }}>
+                <DlgSection hint="Eins og þau birtast í Þjóðskrá / FMR">Auðkenni</DlgSection>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                    <TextField label="Merking" value={anr} onChange={e => setAnr(e.target.value)} size="small" fullWidth />
+                    <TextField label="Fastanúmer" value={fnr} onChange={e => setFnr(e.target.value)} size="small" fullWidth
+                        inputProps={{ style: { fontFamily: 'monospace' } }}
+                        helperText="Sótt sjálfkrafa úr Fasteignaskrá" />
+                </Box>
+
+                <DlgSection hint="Grunnur sem hin hlutföllin nota sjálfgefið">Stærð og grunnhlutfall</DlgSection>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                    <TextField
+                        label="Stærð" value={size}
+                        onChange={e => setSize(e.target.value.replace(/[^0-9.]/g, ''))}
+                        size="small" type="number" inputProps={{ min: 0, step: 0.01 }}
+                        InputProps={{ endAdornment: <InputAdornment position="end">m²</InputAdornment> }}
+                        fullWidth
+                    />
+                    <SharePctField
+                        label="Matshlutfall" value={share} onChange={setShare}
+                        helperText="Skv. eignaskiptasamningi" error={shareOver}
+                    />
+                </Box>
+                {shareOver && <Alert severity="error" sx={{ mt: 1 }}>Heildarhlutfall (matshlutfall) myndi fara yfir 100%</Alert>}
+
+                <DlgSection hint="Aðeins nauðsynlegt ef hiti eða lóð er reiknuð öðruvísi en grunnhlutfall">Sérstök hlutföll</DlgSection>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                    <ToggleRow on={share2Custom} onToggle={() => setShare2Custom(v => !v)}
+                        onLabel="Hiti — sérstakt hlutfall"
+                        offLabel={`Hiti — fylgir grunnhlutfalli (${share || 0}%)`}
+                        hint={share2Custom ? 'Reiknað eftir mæli, ekki eignahlut.' : 'Smelltu til að setja annað gildi.'}
+                    >
+                        <SharePctField label="Matshlutfall hita" value={share2} onChange={setShare2} error={share2Over} />
+                    </ToggleRow>
+                    <ToggleRow on={share3Custom} onToggle={() => setShare3Custom(v => !v)}
+                        onLabel="Lóð — sérstakt hlutfall"
+                        offLabel={`Lóð — fylgir grunnhlutfalli (${share || 0}%)`}
+                        hint="Smelltu til að setja annað gildi."
+                    >
+                        <SharePctField label="Matshlutfall lóðar" value={share3} onChange={setShare3} error={share3Over} />
+                    </ToggleRow>
+                </Box>
+                {(share2Over || share3Over) && (
+                    <Alert severity="error" sx={{ mt: 1 }}>
+                        {share2Over && 'Heildarhlutfall hita fer yfir 100%. '}
+                        {share3Over && 'Heildarhlutfall lóðar fer yfir 100%.'}
+                    </Alert>
+                )}
+
+                <Box sx={{ mt: 2.25, p: '10px 14px', borderRadius: 1, background: DLGNAVYTINT, display: 'flex', alignItems: 'center', gap: 1.5, fontSize: '12.5px' }}>
+                    <Box sx={{ flex: 1 }}>
+                        Eftir vistun:{' '}
+                        <strong style={{ fontFamily: 'monospace' }}>Hlutfall {totalShare.toFixed(2)}%</strong>
+                        {' · '}
+                        <strong style={{ fontFamily: 'monospace' }}>Hiti {totalShare2.toFixed(2)}%</strong>
+                        {' · '}
+                        <strong style={{ fontFamily: 'monospace' }}>Lóð {totalShare3.toFixed(2)}%</strong>
+                    </Box>
+                    {allOk
+                        ? <span style={{ color: DLGPOS, fontWeight: 600, whiteSpace: 'nowrap' }}>✓ Allir lyklar = 100%</span>
+                        : <span style={{ color: DLGWARN, fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap' }}>Ekki allir lyklar = 100%</span>
+                    }
+                </Box>
+                {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
+            </Box>
+
+            {!isDisabled && (
+                <Box sx={{ borderTop: `1px solid ${DLGBORDER}`, p: '12px 24px', background: DLGBGTB, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+                    <Box>
+                        <Typography sx={{ fontSize: 13, fontWeight: 500 }}>Óvirkja íbúð</Typography>
+                        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                            Hættir að birtast í reikningum og yfirliti — gögnum er haldið.
+                        </Typography>
+                    </Box>
+                    <button
+                        onClick={() => setConfirmDelete(true)}
+                        style={{ background: 'transparent', border: `1px solid ${DLGBORDER}`, color: '#c62828', padding: '6px 12px', borderRadius: 4, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+                    >
+                        Óvirkja
+                    </button>
+                </Box>
+            )}
+
+            <Box sx={{ p: '14px 20px', borderTop: `1px solid ${DLGBORDER}`, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                <Button sx={ghostButtonSx} onClick={onClose}>Hætta við</Button>
+                <Button variant="contained" sx={primaryButtonSx} disabled={!isValid || saving} onClick={isDisabled ? handleEnable : handleSave}>
+                    {saving ? <CircularProgress size={18} color="inherit" /> : isDisabled ? 'Virkja íbúð' : 'Vista breytingar'}
+                </Button>
+            </Box>
+        </Dialog>
+
+        <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
+            <Box sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>Óvirkja íbúð</Typography>
+                <DialogContentText>
+                    Ertu viss um að þú viljir óvirkja íbúð <strong>{apt.anr}</strong>?
+                </DialogContentText>
+            </Box>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button sx={ghostButtonSx} onClick={() => setConfirmDelete(false)}>Hætta við</Button>
+                <Button variant="contained" sx={destructiveButtonSx} disabled={deleting} onClick={handleDisable}>
+                    {deleting ? <CircularProgress size={18} color="inherit" /> : 'Já, óvirkja'}
+                </Button>
+            </DialogActions>
+        </Dialog>
         </>
     );
 }
 
+/* ── OwnerDialog (three-step add) ───────────────────────────────── */
 function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
     const { assocParam } = React.useContext(UserContext);
     const [kennitala, setKennitala] = useState('');
@@ -683,8 +887,12 @@ function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
     }, [open]);
 
     const existingSum = apt.owners.reduce((s, o) => s + parseFloat(o.share || 0), 0);
-    const shareOver = parseFloat(share) > 0 && existingSum + parseFloat(share) > 100;
+    const round2 = n => Math.round(n * 100) / 100;
+    const shareOver = parseFloat(share) > 0 && round2(existingSum + parseFloat(share)) > 100;
     const isValid = kennitala.length === 10 && parseFloat(share) > 0 && !shareOver;
+    const newSharePct = parseFloat(share) || 0;
+    const remaining = round2(100 - existingSum);
+    const currentPayer = apt.owners.find(o => o.is_payer);
 
     const handleAdd = async () => {
         setError(''); setSaving(true);
@@ -692,87 +900,152 @@ function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
             const resp = await apiFetch(`${API_URL}/Owner${assocParam}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, kennitala, apartment_id: apt.id, share: parseFloat(share), is_payer: isPayer }),
+                body: JSON.stringify({
+                    user_id: userId, kennitala,
+                    apartment_id: apt.id,
+                    share: parseFloat(share), is_payer: isPayer,
+                }),
             });
             if (resp.ok) { onChanged(); }
-            else { const d = await resp.json(); setError(d.detail || 'Villa við skráningu.'); }
-        } catch { setError('Tenging við þjón mistókst.'); }
-        finally { setSaving(false); }
-    };
-
-    const handleRemove = async (ownerId) => {
-        try { await apiFetch(`${API_URL}/Owner/delete/${ownerId}`, { method: 'DELETE' }); onChanged(); }
-        catch { /* ignore */ }
+            else { const data = await resp.json(); setError(data.detail || 'Villa við skráningu.'); }
+        } catch {
+            setError('Tenging við þjón mistókst.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-            <DialogTitle>Eigendur — {apt.anr}</DialogTitle>
-            <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-                {apt.owners.length === 0 ? (
-                    <Typography color="text.secondary" variant="body2">Enginn eigandi skráður.</Typography>
-                ) : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {apt.owners.map(o => (
-                            <Box key={o.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Box>
-                                    <Typography variant="body2" fontWeight={500}>{o.name}</Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        {fmtKennitala(o.kennitala)} · {o.share}%{o.is_payer ? ' · Greiðandi' : ''}
-                                    </Typography>
-                                </Box>
-                                <Button size="small" sx={destructiveButtonSx} onClick={() => handleRemove(o.id)}>Fjarlægja</Button>
-                            </Box>
-                        ))}
-                        <Typography variant="caption" color="text.secondary">
-                            Núverandi hlutfall: {fmtPct(existingSum)} / 100%
-                        </Typography>
+        <Dialog open={open} onClose={onClose} maxWidth={false}
+            PaperProps={{ sx: { width: 620, maxWidth: '95vw', borderRadius: '12px', overflow: 'hidden' } }}
+        >
+            <Box sx={{ p: '20px 24px 16px', borderBottom: `1px solid ${DLGBORDER}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 0.75, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <CtxChip color="green">Nýr eigandi</CtxChip>
+                        <CtxChip>Íbúð {apt.anr}</CtxChip>
                     </Box>
-                )}
-                <Divider />
-                <Typography variant="subtitle2">Bæta við eiganda</Typography>
+                    <Typography sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.25 }}>Skrá nýjan eiganda</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Sláðu inn kennitölu — nafn er sótt sjálfkrafa úr Þjóðskrá.
+                    </Typography>
+                </Box>
+                <IconButton size="small" onClick={onClose} sx={{ mt: -0.5 }}>
+                    <CloseIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+            </Box>
+
+            <Box sx={{ p: '20px 24px', overflowY: 'auto' }}>
+                <DlgSection>① Þjóðskrárfletting</DlgSection>
                 <TextField
-                    label="Kennitala eiganda"
+                    label="Kennitala"
                     value={kennitala}
                     onChange={e => setKennitala(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    inputProps={{ inputMode: 'numeric', maxLength: 10 }}
-                    helperText={`${kennitala.length}/10`}
+                    inputProps={{ inputMode: 'numeric', maxLength: 10, style: { fontFamily: 'monospace' } }}
+                    InputProps={{ endAdornment: <InputAdornment position="end">{kennitala.length}/10</InputAdornment> }}
                     size="small" fullWidth
+                    helperText="10 tölustafir — bandstrik er valfrjálst"
                 />
-                <TextField
-                    label="Hlutfall (%)"
-                    value={share}
-                    onChange={e => setShare(e.target.value.replace(/[^0-9.]/g, ''))}
-                    size="small" type="number"
-                    inputProps={{ min: 0, max: 100, step: 0.01 }}
-                    helperText="Hlutdeild þessa eiganda í íbúðinni"
-                    error={shareOver} fullWidth
-                />
-                {shareOver && <Alert severity="error">Heildarhlutfall eigenda myndi fara yfir 100% fyrir þessa íbúð.</Alert>}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box
-                        component="button"
-                        onClick={() => setIsPayer(v => !v)}
-                        sx={{
-                            border: isPayer ? `1.5px solid ${GREEN}` : `1px solid ${BORDER}`,
-                            background: isPayer ? 'rgba(8,192,118,0.08)' : 'transparent',
-                            color: isPayer ? GREEN : 'text.secondary',
-                            borderRadius: 999, px: 1.5, py: '3px',
-                            fontSize: 12.5, cursor: 'pointer', fontWeight: isPayer ? 600 : 400,
-                        }}
-                    >
-                        Greiðandi
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">Merkja sem greiðanda reikninga</Typography>
+
+                <DlgSection hint="Forvalið út frá síðu sem þú varst á">② Tenging við íbúð</DlgSection>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 1.5 }}>
+                    <TextField
+                        label="Íbúð"
+                        value={`${apt.anr}${apt.size ? ` — ${apt.size} m²` : ''}`}
+                        size="small" fullWidth disabled
+                    />
+                    <TextField
+                        label="Hlutfall"
+                        value={share}
+                        onChange={e => setShare(e.target.value.replace(/[^0-9.]/g, ''))}
+                        size="small" type="number"
+                        inputProps={{ min: 0, max: 100, step: 0.01 }}
+                        InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+                        helperText={`Eftir: ${round2(remaining - newSharePct).toFixed(2)}%`}
+                        error={shareOver} fullWidth
+                    />
                 </Box>
-                {error && <Alert severity="error">{error}</Alert>}
-            </DialogContent>
-            <DialogActions>
-                <Button sx={ghostButtonSx} onClick={onClose}>Loka</Button>
+
+                {(existingSum > 0 || newSharePct > 0) && (
+                    <Box sx={{ mt: 1.5, p: '10px 14px', border: `1px solid ${DLGBORDER}`, borderRadius: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75, fontSize: '11.5px', color: DLGTEXT2, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                            <span>Skipting í íbúð {apt.anr} eftir vistun</span>
+                            <span style={{ color: round2(existingSum + newSharePct) === 100 ? DLGPOS : DLGWARN }}>
+                                {round2(existingSum + newSharePct).toFixed(2)}%
+                            </span>
+                        </Box>
+                        <Box sx={{ height: 10, borderRadius: 999, overflow: 'hidden', background: '#f3f4f6', display: 'flex' }}>
+                            {apt.owners.map((o, i) => (
+                                <div key={o.id} style={{ width: `${parseFloat(o.share)}%`, background: i % 2 === 0 ? DLGNAVY : '#3d5a9f' }} />
+                            ))}
+                            {newSharePct > 0 && <div style={{ width: `${newSharePct}%`, background: DLGGREEN }} />}
+                        </Box>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '3px 10px', mt: 0.75, fontSize: '11.5px' }}>
+                            {apt.owners.map((o, i) => (
+                                <span key={o.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: DLGTEXT2 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: 2, background: i % 2 === 0 ? DLGNAVY : '#3d5a9f', display: 'inline-block' }} />
+                                    {o.name} · {parseFloat(o.share).toFixed(2)}%
+                                </span>
+                            ))}
+                            {newSharePct > 0 && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: 2, background: DLGGREEN, display: 'inline-block' }} />
+                                    Nýr eigandi · {newSharePct.toFixed(2)}%
+                                </span>
+                            )}
+                        </Box>
+                    </Box>
+                )}
+
+                <DlgSection>③ Greiðandi reikninga</DlgSection>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    {[
+                        {
+                            val: false,
+                            label: 'Ekki greiðandi',
+                            sub: currentPayer ? `${currentPayer.name} er enn greiðandi` : 'Enginn greiðandi skráður',
+                        },
+                        {
+                            val: true,
+                            label: 'Já — gera greiðanda',
+                            sub: currentPayer ? `Tekur við af ${currentPayer.name}` : 'Þessi eigandi verður greiðandi',
+                        },
+                    ].map(opt => (
+                        <Box
+                            key={String(opt.val)}
+                            onClick={() => setIsPayer(opt.val)}
+                            sx={{
+                                flex: 1, p: '12px 14px', cursor: 'pointer', borderRadius: 2,
+                                border: `${isPayer === opt.val ? '1.5px' : '1px'} solid ${isPayer === opt.val ? DLGNAVY : DLGBORDER}`,
+                                background: isPayer === opt.val ? DLGNAVYTINT : '#fff',
+                                display: 'flex', alignItems: 'center', gap: 1.25,
+                            }}
+                        >
+                            <span style={{
+                                width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                                border: `2px solid ${isPayer === opt.val ? DLGNAVY : DLGBORDER}`,
+                                background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                                {isPayer === opt.val && <span style={{ width: 8, height: 8, borderRadius: '50%', background: DLGNAVY }} />}
+                            </span>
+                            <div>
+                                <div style={{ fontSize: 13.5, fontWeight: 500 }}>{opt.label}</div>
+                                <div style={{ fontSize: 11.5, color: DLGTEXT2 }}>{opt.sub}</div>
+                            </div>
+                        </Box>
+                    ))}
+                </Box>
+
+                {shareOver && <Alert severity="error" sx={{ mt: 1.5 }}>Heildarhlutfall eigenda myndi fara yfir 100% fyrir þessa íbúð.</Alert>}
+                {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
+            </Box>
+
+            <Box sx={{ p: '14px 20px', borderTop: `1px solid ${DLGBORDER}`, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                <Button sx={ghostButtonSx} onClick={onClose}>Hætta við</Button>
                 <Button variant="contained" sx={primaryButtonSx} disabled={!isValid || saving} onClick={handleAdd}>
                     {saving ? <CircularProgress size={18} color="inherit" /> : 'Skrá eiganda'}
                 </Button>
-            </DialogActions>
+            </Box>
         </Dialog>
     );
 }
