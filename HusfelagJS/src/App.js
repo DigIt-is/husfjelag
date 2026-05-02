@@ -26,6 +26,8 @@ import BankHealthPage from './controlers/BankHealthPage';
 import AdminCategoriesPage from './controlers/AdminCategoriesPage';
 import AdminAccountingKeysPage from './controlers/AdminAccountingKeysPage';
 import RegistrationRequestPage from './controlers/RegistrationRequestPage';
+import SkilmalarPage from './controlers/SkilmalarPage';
+import PersonuverndPage from './controlers/PersonuverndPage';
 import { apiFetch } from './api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
@@ -211,6 +213,8 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/skilmalar" element={<SkilmalarPage />} />
+            <Route path="/personuvernd" element={<PersonuverndPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/logout" element={<Logout />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
