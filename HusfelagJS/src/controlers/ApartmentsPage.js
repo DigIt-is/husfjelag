@@ -2,24 +2,105 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Box, Typography, CircularProgress, Paper,
-    Table, TableHead, TableRow, TableCell, TableBody, TableFooter,
-    Button, TextField, Collapse, Chip, IconButton,
-    Dialog, DialogTitle, DialogContent, DialogActions,
+    Button, TextField, Collapse, IconButton,
+    Dialog, DialogActions,
     Alert, Tooltip, DialogContentText,
     InputAdornment,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import AddIcon from '@mui/icons-material/Add';
 import { useHelp } from '../ui/HelpContext';
 import { UserContext } from './UserContext';
 import { apiFetch } from '../api';
 import SideBar from './Sidebar';
 import { fmtPct } from '../format';
-import { useSort, HEAD_SX, HEAD_CELL_SX } from './tableUtils';
 import { primaryButtonSx, secondaryButtonSx, ghostButtonSx, destructiveButtonSx } from '../ui/buttons';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
+
+/* ── Page-level tokens ──────────────────────────────────────────── */
+const NAVY = '#1D366F';
+const GREEN = '#08C076';
+const BORDER = '#e8e8e8';
+const BORDER_ROW = '#f2f2f2';
+const COLS = '110px 140px 90px 80px 80px 80px minmax(200px, 1fr) 44px';
+
+/* ── Dialog tokens ──────────────────────────────────────────────── */
+const DLGBORDER   = '#e8e8e8';
+const DLGNAVY     = '#1D366F';
+const DLGNAVYTINT = '#eef1f8';
+const DLGGREEN    = '#08C076';
+const DLGGREENTINT = '#e8f5e9';
+const DLGTEXT2    = '#555';
+const DLGDIS      = '#888';
+const DLGWARN     = '#e65100';
+const DLGPOS      = '#2e7d32';
+const DLGBGTB     = '#fafafa';
+
+/* ── Helpers ────────────────────────────────────────────────────── */
+function getInitials(name) {
+    const words = (name || '').trim().split(/\s+/);
+    return words.slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
+}
+
+/* ── Page components ────────────────────────────────────────────── */
+function OwnerPill({ o }) {
+    const isGreen = o.is_payer;
+    const bg = isGreen ? 'rgba(8,192,118,0.12)' : 'rgba(29,54,111,0.10)';
+    const fg = isGreen ? GREEN : NAVY;
+    return (
+        <Box sx={{
+            display: 'inline-flex', alignItems: 'center', gap: '7px',
+            background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 999,
+            py: '2px', pl: '2px', pr: '10px', fontSize: 12.5, whiteSpace: 'nowrap',
+        }}>
+            <Box sx={{
+                width: 22, height: 22, borderRadius: '50%',
+                background: bg, color: fg, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 600, fontSize: 10.5,
+            }}>
+                {getInitials(o.name)}
+            </Box>
+            <span>{o.name}</span>
+            {o.is_payer && (
+                <Box sx={{
+                    width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+                    background: GREEN, color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 9, fontWeight: 700, ml: '-4px',
+                }}>kr</Box>
+            )}
+        </Box>
+    );
+}
+
+function TableHeader({ cols, showOwners = true }) {
+    return (
+        <Box sx={{
+            display: 'grid', gridTemplateColumns: cols,
+            px: 2.25, py: 1.25,
+            background: '#f5f5f5', borderBottom: `1px solid ${BORDER}`,
+            fontSize: '0.7rem', fontWeight: 600, color: '#888',
+            letterSpacing: '0.06em', textTransform: 'uppercase', alignItems: 'center',
+        }}>
+            <Box>Merking</Box>
+            <Box>Fastanúmer</Box>
+            <Box sx={{ textAlign: 'right' }}>Stærð</Box>
+            <Box sx={{ textAlign: 'right', color: NAVY }}>Hlutfall</Box>
+            <Box sx={{ textAlign: 'right', color: NAVY }}>Hiti</Box>
+            <Box sx={{ textAlign: 'right', color: NAVY }}>Lóð</Box>
+            <Box sx={{ pl: '18px', borderLeft: `1px dashed ${BORDER}` }}>
+                {showOwners ? 'Eigendur' : ''}
+            </Box>
+            <Box />
+        </Box>
+    );
+}
 
 function ApartmentsPage() {
     const navigate = useNavigate();
@@ -29,7 +110,6 @@ function ApartmentsPage() {
     const [error, setError] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [showDisabled, setShowDisabled] = useState(false);
-    const { sort, lbl } = useSort('anr');
 
     useEffect(() => {
         if (!user) { navigate('/login'); return; }
@@ -39,15 +119,10 @@ function ApartmentsPage() {
     const loadApartments = async () => {
         try {
             const resp = await apiFetch(`${API_URL}/Apartment/${user.id}${assocParam}`);
-            if (resp.ok) {
-                setApartments(await resp.json());
-            } else {
-                setError('Villa við að sækja íbúðir.');
-                setApartments([]);
-            }
+            if (resp.ok) setApartments(await resp.json());
+            else { setError('Villa við að sækja íbúðir.'); setApartments([]); }
         } catch {
-            setError('Tenging við þjón mistókst.');
-            setApartments([]);
+            setError('Tenging við þjón mistókst.'); setApartments([]);
         }
     };
 
@@ -62,26 +137,47 @@ function ApartmentsPage() {
         );
     }
 
+    const active = [...apartments.filter(a => !a.deleted)]
+        .sort((a, b) => a.anr.localeCompare(b.anr, 'is'));
+    const disabled = [...apartments.filter(a => a.deleted)]
+        .sort((a, b) => a.anr.localeCompare(b.anr, 'is'));
+
+    const totalSize   = active.reduce((s, a) => s + parseFloat(a.size   || 0), 0);
+    const totalShare  = active.reduce((s, a) => s + parseFloat(a.share  || 0), 0);
+    const totalShare2 = active.reduce((s, a) => s + parseFloat(a.share_2 || 0), 0);
+    const totalShare3 = active.reduce((s, a) => s + parseFloat(a.share_3 || 0), 0);
+    const totalOwners = active.reduce((s, a) => s + (a.owners?.length || 0), 0);
+    const ratiosOk = active.length > 0 &&
+        [totalShare, totalShare2, totalShare3].every(v => Math.abs(v - 100) < 0.01);
+
+    const KPIS = [
+        { label: 'HLUTFALL', val: totalShare,  hint: 'Almennur rekstur',  desc: 'Skipt eftir eignarhluta í þinglýstu skjali.' },
+        { label: 'HITI',     val: totalShare2, hint: 'Hitakostnaður',     desc: 'Eftir m² eða mæli — fer eftir samningi.' },
+        { label: 'LÓÐ',      val: totalShare3, hint: 'Lóðarframlag',      desc: 'Skipt eftir lóðarmældum hluta.' },
+    ];
+
     return (
         <div className="dashboard">
             <SideBar />
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-                {/* Zone 1: Header */}
-                <Box sx={{ px: 3, py: 2, background: '#fff', borderBottom: '1px solid #e8e8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                    <Typography variant="h5">Íbúðir</Typography>
+
+                {/* Zone ①: Header */}
+                <Box sx={{ px: 3, py: 2, background: '#fff', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                    <Box>
+                        <Typography variant="h5">
+                            Íbúðir
+                            {active.length > 0 && (
+                                <Box component="span" sx={{ fontWeight: 300, color: 'text.disabled', ml: 1 }}>
+                                    {active.length}
+                                </Box>
+                            )}
+                        </Typography>
+                    </Box>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Button
-                            variant="outlined"
-                            sx={secondaryButtonSx}
-                            onClick={() => navigate('/ibudir/innflutningur')}
-                        >
+                        <Button variant="outlined" sx={secondaryButtonSx} onClick={() => navigate('/ibudir/innflutningur')}>
                             ⬇ Innflutningur
                         </Button>
-                        <Button
-                            variant="contained"
-                            sx={primaryButtonSx}
-                            onClick={() => setShowForm(true)}
-                        >
+                        <Button variant="contained" sx={primaryButtonSx} onClick={() => setShowForm(true)}>
                             + Bæta við íbúð
                         </Button>
                         <Tooltip title="Hjálp">
@@ -92,146 +188,246 @@ function ApartmentsPage() {
                     </Box>
                 </Box>
 
-                {/* Zone 3: Content */}
+                {/* Zone ③: Content */}
                 <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
                     <AddApartmentDialog
                         open={showForm}
                         onClose={() => setShowForm(false)}
                         userId={user.id}
                         assocParam={assocParam}
-                        apartments={apartments.filter(a => !a.deleted)}
+                        apartments={active}
                         onCreated={(updated) => { setShowForm(false); setApartments(updated); }}
                     />
 
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-                    {(() => {
-                        const active = apartments.filter(a => !a.deleted);
-                        const disabled = apartments.filter(a => a.deleted);
-                        return (
-                            <>
-                                {active.length === 0 ? (
-                                    <Paper
-                                        variant="outlined"
-                                        sx={{ p: 3, borderColor: 'secondary.main', bgcolor: 'rgba(8,192,118,0.05)' }}
-                                    >
-                                        <Typography variant="subtitle1" color="secondary" sx={{ mb: 0.5 }}>
-                                            Setja upp íbúðir sjálfkrafa
+                    {active.length === 0 ? (
+                        <Paper variant="outlined" sx={{ p: 3, borderColor: 'secondary.main', bgcolor: 'rgba(8,192,118,0.05)' }}>
+                            <Typography variant="subtitle1" color="secondary" sx={{ mb: 0.5 }}>
+                                Setja upp íbúðir sjálfkrafa
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Enginn búinn að skrá íbúðir. Notaðu HMS fasteignaskrána til að flytja inn lista yfir íbúðir sjálfkrafa.
+                            </Typography>
+                            <Button variant="contained" sx={primaryButtonSx} onClick={() => navigate('/ibudir/innflutningur')}>
+                                Flytja inn frá HMS →
+                            </Button>
+                        </Paper>
+                    ) : (
+                        <>
+                            {/* KPI strip */}
+                            <Box sx={{
+                                display: 'grid', gridTemplateColumns: '0.95fr 1fr 1fr 1fr',
+                                border: `1px solid ${BORDER}`, borderRadius: 2,
+                                overflow: 'hidden', mb: 2,
+                            }}>
+                                <Box sx={{
+                                    px: 2.25, py: 1.75, background: '#fafafa',
+                                    borderRight: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column',
+                                }}>
+                                    <Typography sx={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', color: NAVY, textTransform: 'uppercase', mb: 0.75 }}>
+                                        EIGNARHLUTFÖLL
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.45, flex: 1 }}>
+                                        Þrír kostnaðarlyklar skipta sameiginlegum kostnaði. Skráðir við stofnun · breytast sjaldan.
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1.25 }}>
+                                        {ratiosOk
+                                            ? <CheckCircleOutlineIcon sx={{ fontSize: 15, color: '#2e7d32' }} />
+                                            : <ErrorOutlineIcon sx={{ fontSize: 15, color: '#c62828' }} />
+                                        }
+                                        <Typography sx={{ fontSize: 12, color: ratiosOk ? '#2e7d32' : '#c62828' }}>
+                                            {ratiosOk ? 'Allir lyklar = 100,00%' : 'Súlur stemma ekki'}
                                         </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                            Enginn búinn að skrá íbúðir. Notaðu HMS fasteignaskrána til að flytja inn lista yfir íbúðir sjálfkrafa.
-                                        </Typography>
-                                        <Button
-                                            variant="contained"
-                                            sx={primaryButtonSx}
-                                            onClick={() => navigate('/ibudir/innflutningur')}
-                                        >
-                                            Flytja inn frá HMS →
-                                        </Button>
-                                    </Paper>
-                                ) : (
-                                    <Paper variant="outlined">
-                                        <Table size="small">
-                                            <TableHead sx={HEAD_SX}>
-                                                <TableRow>
-                                                    <TableCell sx={HEAD_CELL_SX}>{lbl('anr', 'Merking')}</TableCell>
-                                                    <TableCell sx={HEAD_CELL_SX}>{lbl('fnr', 'Fastanúmer')}</TableCell>
-                                                    <TableCell sx={HEAD_CELL_SX}>{lbl('size', 'Stærð (m²)')}</TableCell>
-                                                    <TableCell sx={HEAD_CELL_SX}>{lbl('share', 'Hlutfall (%)')}</TableCell>
-                                                    <TableCell sx={HEAD_CELL_SX}>{lbl('share_2', 'Hiti (%)')}</TableCell>
-                                                    <TableCell sx={HEAD_CELL_SX}>{lbl('share_3', 'Lóð (%)')}</TableCell>
-                                                    <TableCell sx={HEAD_CELL_SX}>Eigendur</TableCell>
-                                                    <TableCell />
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {sort(active).map((apt) => (
-                                                    <ApartmentRow
-                                                        key={apt.id}
-                                                        apt={apt}
-                                                        apartments={active}
-                                                        onOwnersChanged={loadApartments}
-                                                        onSaved={loadApartments}
-                                                    />
-                                                ))}
-                                            </TableBody>
-                                            <TableFooter>
-                                                <TableRow sx={{ '& td': { fontWeight: 600, borderTop: '2px solid rgba(0,0,0,0.12)', color: 'text.primary' } }}>
-                                                    <TableCell>Samtals</TableCell>
-                                                    <TableCell />
-                                                    <TableCell>{active.reduce((s, a) => s + parseFloat(a.size || 0), 0).toFixed(2)} m²</TableCell>
-                                                    <TableCell>{fmtPct(active.reduce((s, a) => s + parseFloat(a.share || 0), 0))}</TableCell>
-                                                    <TableCell>{fmtPct(active.reduce((s, a) => s + parseFloat(a.share_2 || 0), 0))}</TableCell>
-                                                    <TableCell>{fmtPct(active.reduce((s, a) => s + parseFloat(a.share_3 || 0), 0))}</TableCell>
-                                                    <TableCell />
-                                                    <TableCell />
-                                                </TableRow>
-                                            </TableFooter>
-                                        </Table>
-                                    </Paper>
-                                )}
-
-                                {disabled.length > 0 && (
-                                    <Box sx={{ mt: 3 }}>
-                                        <Button
-                                            size="small"
-                                            sx={{ ...ghostButtonSx, p: 0, minWidth: 0 }}
-                                            onClick={() => setShowDisabled(v => !v)}
-                                        >
-                                            {showDisabled ? '▲' : '▼'} Óvirkar íbúðir ({disabled.length})
-                                        </Button>
-                                        <Collapse in={showDisabled}>
-                                            <Paper variant="outlined" sx={{ mt: 1 }}>
-                                                <Table size="small">
-                                                    <TableHead sx={HEAD_SX}>
-                                                        <TableRow>
-                                                            <TableCell sx={HEAD_CELL_SX}>Merking</TableCell>
-                                                            <TableCell sx={HEAD_CELL_SX}>Fastanúmer</TableCell>
-                                                            <TableCell sx={HEAD_CELL_SX}>Stærð (m²)</TableCell>
-                                                            <TableCell sx={HEAD_CELL_SX}>Matshlutfall (%)</TableCell>
-                                                            <TableCell sx={HEAD_CELL_SX}>Hiti (%)</TableCell>
-                                                            <TableCell sx={HEAD_CELL_SX}>Lóð (%)</TableCell>
-                                                            <TableCell />
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        {sort(disabled).map((apt) => (
-                                                            <ApartmentRow
-                                                                key={apt.id}
-                                                                apt={apt}
-                                                                apartments={active}
-                                                                onOwnersChanged={loadApartments}
-                                                                onSaved={loadApartments}
-                                                                isDisabled
-                                                            />
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </Paper>
-                                        </Collapse>
                                     </Box>
+                                </Box>
+                                {KPIS.map((c, i) => (
+                                    <Box key={i} sx={{
+                                        px: 2.25, py: 1.75,
+                                        borderRight: i < 2 ? `1px solid ${BORDER}` : 'none',
+                                        display: 'flex', flexDirection: 'column',
+                                    }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.25 }}>
+                                            <Typography sx={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', color: '#888', textTransform: 'uppercase' }}>
+                                                {c.label}
+                                            </Typography>
+                                            <Typography sx={{ fontSize: 10.5, color: 'text.disabled' }}>{c.hint}</Typography>
+                                        </Box>
+                                        <Typography sx={{ fontSize: 22, fontWeight: 300, mt: 0.25, letterSpacing: '-0.01em', color: NAVY }}>
+                                            {fmtPct(c.val)}
+                                        </Typography>
+                                        <Typography sx={{ fontSize: 11.5, color: 'text.secondary', mt: 0.75, lineHeight: 1.4 }}>
+                                            {c.desc}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+
+                            {/* Main table */}
+                            <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+                                <TableHeader cols={COLS} />
+                                {active.map((apt, i) => (
+                                    <ApartmentRowV1
+                                        key={apt.id}
+                                        apt={apt}
+                                        apartments={active}
+                                        isLast={i === active.length - 1}
+                                        onOwnersChanged={loadApartments}
+                                        onSaved={loadApartments}
+                                    />
+                                ))}
+                                <Box sx={{
+                                    display: 'grid', gridTemplateColumns: COLS,
+                                    px: 2.25, py: 1.5,
+                                    borderTop: '2px solid rgba(0,0,0,0.12)',
+                                    background: '#fafafa',
+                                    fontWeight: 600, fontSize: 13, alignItems: 'center',
+                                }}>
+                                    <Box>Samtals</Box>
+                                    <Box />
+                                    <Box sx={{ textAlign: 'right', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                        {totalSize.toFixed(2)} m²
+                                    </Box>
+                                    <Box sx={{ textAlign: 'right', fontFamily: 'monospace', color: ratiosOk ? '#2e7d32' : '#c62828' }}>
+                                        {fmtPct(totalShare)}
+                                    </Box>
+                                    <Box sx={{ textAlign: 'right', fontFamily: 'monospace', color: ratiosOk ? '#2e7d32' : '#c62828' }}>
+                                        {fmtPct(totalShare2)}
+                                    </Box>
+                                    <Box sx={{ textAlign: 'right', fontFamily: 'monospace', color: ratiosOk ? '#2e7d32' : '#c62828' }}>
+                                        {fmtPct(totalShare3)}
+                                    </Box>
+                                    <Box sx={{ pl: '18px', borderLeft: `1px dashed ${BORDER}`, fontWeight: 400, fontSize: 12.5, color: 'text.secondary' }}>
+                                        {totalOwners} eigendur
+                                    </Box>
+                                    <Box />
+                                </Box>
+                            </Paper>
+
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                    <Box sx={{
+                                        width: 14, height: 14, borderRadius: '50%',
+                                        background: GREEN, color: '#fff',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 9, fontWeight: 700,
+                                    }}>kr</Box>
+                                    <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Greiðandi reiknings</Typography>
+                                </Box>
+                                {disabled.length > 0 && (
+                                    <Button size="small" sx={{ ...ghostButtonSx, p: 0, minWidth: 0 }} onClick={() => setShowDisabled(v => !v)}>
+                                        {showDisabled ? '▲' : '▼'} Óvirkar íbúðir ({disabled.length})
+                                    </Button>
                                 )}
-                            </>
-                        );
-                    })()}
+                            </Box>
+
+                            {disabled.length > 0 && (
+                                <Collapse in={showDisabled}>
+                                    <Paper variant="outlined" sx={{ mt: 1, overflow: 'hidden' }}>
+                                        <TableHeader cols={COLS} showOwners={false} />
+                                        {disabled.map((apt, i) => (
+                                            <ApartmentRowV1
+                                                key={apt.id}
+                                                apt={apt}
+                                                apartments={active}
+                                                isLast={i === disabled.length - 1}
+                                                onOwnersChanged={loadApartments}
+                                                onSaved={loadApartments}
+                                                isDisabled
+                                            />
+                                        ))}
+                                    </Paper>
+                                </Collapse>
+                            )}
+                        </>
+                    )}
                 </Box>
             </Box>
         </div>
     );
 }
 
-/* ── Dialog primitives ────────────────────────────────────────── */
+function ApartmentRowV1({ apt, apartments, isLast, onOwnersChanged, onSaved, isDisabled }) {
+    const [ownerDialogOpen, setOwnerDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const { user } = React.useContext(UserContext);
 
-const DLGBORDER = '#e8e8e8';
-const DLGNAVY   = '#1D366F';
-const DLGNAVYTINT = '#eef1f8';
-const DLGGREEN  = '#08C076';
-const DLGGREENTINT = '#e8f5e9';
-const DLGTEXT2  = '#555';
-const DLGDIS    = '#888';
-const DLGWARN   = '#e65100';
-const DLGPOS    = '#2e7d32';
-const DLGBGTB   = '#fafafa';
+    return (
+        <>
+            <Box sx={{
+                display: 'grid', gridTemplateColumns: COLS,
+                px: 2.25, py: 1.75,
+                borderBottom: isLast ? 'none' : `1px solid ${BORDER_ROW}`,
+                alignItems: 'center', fontSize: 13.5,
+                opacity: isDisabled ? 0.55 : 1,
+                transition: 'background 0.1s',
+                '&:hover': { background: '#fafafa' },
+            }}>
+                <Box sx={{ fontWeight: 500 }}>{apt.anr}</Box>
+                <Box sx={{ fontFamily: 'monospace', fontSize: 12, color: 'text.secondary' }}>{apt.fnr}</Box>
+                <Box sx={{ textAlign: 'right', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                    {parseFloat(apt.size || 0).toFixed(2)}
+                    <Box component="span" sx={{ fontSize: 11, color: 'text.disabled', ml: '3px' }}>m²</Box>
+                </Box>
+                <Box sx={{ textAlign: 'right', fontFamily: 'monospace', color: NAVY, fontWeight: 500 }}>
+                    {fmtPct(apt.share)}
+                </Box>
+                <Box sx={{ textAlign: 'right', fontFamily: 'monospace', color: NAVY, fontWeight: 500 }}>
+                    {fmtPct(apt.share_2)}
+                </Box>
+                <Box sx={{ textAlign: 'right', fontFamily: 'monospace', color: NAVY, fontWeight: 500 }}>
+                    {fmtPct(apt.share_3)}
+                </Box>
+                <Box sx={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', pl: '18px', borderLeft: `1px dashed ${BORDER}` }}>
+                    {!isDisabled && apt.owners?.map(o => <OwnerPill key={o.id} o={o} />)}
+                    {!isDisabled && (
+                        <Box
+                            component="button"
+                            onClick={() => setOwnerDialogOpen(true)}
+                            sx={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                background: 'transparent', border: `1px dashed ${BORDER}`,
+                                borderRadius: 999, px: 1.25, py: '3px',
+                                fontSize: 12, color: 'text.secondary', cursor: 'pointer',
+                                '&:hover': { borderColor: NAVY, color: NAVY },
+                            }}
+                        >
+                            <AddIcon sx={{ fontSize: 13 }} />Eigandi
+                        </Box>
+                    )}
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Tooltip title={isDisabled ? 'Virkja / breyta' : 'Breyta'}>
+                        <IconButton size="small" onClick={() => setEditDialogOpen(true)}>
+                            <EditIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+            </Box>
+
+            {!isDisabled && (
+                <OwnerDialog
+                    open={ownerDialogOpen}
+                    onClose={() => setOwnerDialogOpen(false)}
+                    apt={apt}
+                    userId={user?.id}
+                    onChanged={() => { setOwnerDialogOpen(false); onOwnersChanged(); }}
+                />
+            )}
+            <EditApartmentDialog
+                open={editDialogOpen}
+                onClose={() => setEditDialogOpen(false)}
+                apt={apt}
+                apartments={apartments}
+                isDisabled={isDisabled}
+                onSaved={() => { setEditDialogOpen(false); onSaved(); }}
+                onDeleted={() => { setEditDialogOpen(false); onSaved(); }}
+            />
+        </>
+    );
+}
+
+/* ── Dialog primitives ──────────────────────────────────────────── */
 
 function DlgSection({ children, hint }) {
     return (
@@ -306,6 +502,7 @@ function SharePctField({ label, value, onChange, error, helperText }) {
     );
 }
 
+/* ── AddApartmentDialog ─────────────────────────────────────────── */
 function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onCreated }) {
     const [anr, setAnr] = useState('');
     const [fnr, setFnr] = useState('');
@@ -348,8 +545,7 @@ function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onC
         && !shareOver && !share2Over && !share3Over;
 
     const handleSubmit = async () => {
-        setError('');
-        setSaving(true);
+        setError(''); setSaving(true);
         try {
             const resp = await apiFetch(`${API_URL}/Apartment${assocParam}`, {
                 method: 'POST',
@@ -375,7 +571,6 @@ function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onC
         <Dialog open={open} onClose={onClose} maxWidth={false}
             PaperProps={{ sx: { width: 680, maxWidth: '95vw', borderRadius: '12px', overflow: 'hidden' } }}
         >
-            {/* Header */}
             <Box sx={{ p: '20px 24px 16px', borderBottom: `1px solid ${DLGBORDER}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <Box>
                     <Typography sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.25 }}>Skrá nýja íbúð</Typography>
@@ -388,7 +583,6 @@ function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onC
                 </IconButton>
             </Box>
 
-            {/* Body */}
             <Box sx={{ p: '20px 24px', overflowY: 'auto' }}>
                 <DlgSection hint="Eins og þau birtast í Þjóðskrá / FMR">Auðkenni</DlgSection>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
@@ -437,7 +631,6 @@ function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onC
                     </Alert>
                 )}
 
-                {/* Live ratio readout */}
                 {(share || eff2 || eff3) && (
                     <Box sx={{ mt: 2.25, p: '10px 14px', borderRadius: 1, background: DLGNAVYTINT, display: 'flex', alignItems: 'center', gap: 1.5, fontSize: '12.5px' }}>
                         <Box sx={{ flex: 1 }}>
@@ -457,7 +650,6 @@ function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onC
                 {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
             </Box>
 
-            {/* Footer */}
             <Box sx={{ p: '14px 20px', borderTop: `1px solid ${DLGBORDER}`, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                 <Button sx={ghostButtonSx} onClick={onClose}>Hætta við</Button>
                 <Button variant="contained" sx={primaryButtonSx} disabled={!isValid || saving} onClick={handleSubmit}>
@@ -468,68 +660,7 @@ function AddApartmentDialog({ open, onClose, userId, assocParam, apartments, onC
     );
 }
 
-function ApartmentRow({ apt, apartments, onOwnersChanged, onSaved, isDisabled }) {
-    const [ownerDialogOpen, setOwnerDialogOpen] = useState(false);
-    const [editDialogOpen, setEditDialogOpen] = useState(false);
-    const { user } = React.useContext(UserContext);
-
-    return (
-        <>
-            <TableRow hover sx={isDisabled ? { opacity: 0.55 } : {}}>
-                <TableCell>{apt.anr}</TableCell>
-                <TableCell>{apt.fnr}</TableCell>
-                <TableCell>{apt.size} m²</TableCell>
-                <TableCell>{apt.share}%</TableCell>
-                <TableCell>{apt.share_2}%</TableCell>
-                <TableCell>{apt.share_3}%</TableCell>
-                {!isDisabled && (
-                    <TableCell>
-                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
-                            {apt.owners.map(o => (
-                                <Chip key={o.id} label={o.name} size="small" />
-                            ))}
-                            <Chip
-                                label="+ Eigandi"
-                                size="small"
-                                variant="outlined"
-                                color="secondary"
-                                onClick={() => setOwnerDialogOpen(true)}
-                                sx={{ cursor: 'pointer' }}
-                            />
-                        </Box>
-                    </TableCell>
-                )}
-                <TableCell align="right" sx={{ width: 48 }}>
-                    <Tooltip title={isDisabled ? 'Virkja / breyta' : 'Breyta'}>
-                        <IconButton size="small" onClick={() => setEditDialogOpen(true)}>
-                            <EditIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                </TableCell>
-            </TableRow>
-
-            {!isDisabled && (
-                <OwnerDialog
-                    open={ownerDialogOpen}
-                    onClose={() => setOwnerDialogOpen(false)}
-                    apt={apt}
-                    userId={user?.id}
-                    onChanged={() => { setOwnerDialogOpen(false); onOwnersChanged(); }}
-                />
-            )}
-            <EditApartmentDialog
-                open={editDialogOpen}
-                onClose={() => setEditDialogOpen(false)}
-                apt={apt}
-                apartments={apartments}
-                isDisabled={isDisabled}
-                onSaved={() => { setEditDialogOpen(false); onSaved(); }}
-                onDeleted={() => { setEditDialogOpen(false); onSaved(); }}
-            />
-        </>
-    );
-}
-
+/* ── EditApartmentDialog ────────────────────────────────────────── */
 function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSaved, onDeleted }) {
     const [anr, setAnr] = useState(apt.anr);
     const [fnr, setFnr] = useState(apt.fnr);
@@ -584,8 +715,7 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
         setError(''); setSaving(true);
         try {
             const resp = await apiFetch(`${API_URL}/Apartment/update/${apt.id}`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
             });
             if (resp.ok) { onSaved(); }
             else { const data = await resp.json(); setError(data.detail || 'Villa við uppfærslu.'); }
@@ -605,8 +735,7 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
         setError(''); setSaving(true);
         try {
             const resp = await apiFetch(`${API_URL}/Apartment/enable/${apt.id}`, {
-                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
             });
             if (resp.ok) { onSaved(); }
             else { const data = await resp.json(); setError(data.detail || 'Villa við virkjun.'); }
@@ -618,7 +747,6 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
         <Dialog open={open} onClose={onClose} maxWidth={false}
             PaperProps={{ sx: { width: 680, maxWidth: '95vw', borderRadius: '12px', overflow: 'hidden' } }}
         >
-            {/* Header */}
             <Box sx={{ p: '20px 24px 16px', borderBottom: `1px solid ${DLGBORDER}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <Box>
                     <Box sx={{ display: 'flex', gap: 1, mb: 0.75, alignItems: 'center' }}>
@@ -636,7 +764,6 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
                 </IconButton>
             </Box>
 
-            {/* Body */}
             <Box sx={{ p: '20px 24px', overflowY: 'auto' }}>
                 <DlgSection hint="Eins og þau birtast í Þjóðskrá / FMR">Auðkenni</DlgSection>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
@@ -686,7 +813,6 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
                     </Alert>
                 )}
 
-                {/* Live ratio readout */}
                 <Box sx={{ mt: 2.25, p: '10px 14px', borderRadius: 1, background: DLGNAVYTINT, display: 'flex', alignItems: 'center', gap: 1.5, fontSize: '12.5px' }}>
                     <Box sx={{ flex: 1 }}>
                         Eftir vistun:{' '}
@@ -701,11 +827,9 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
                         : <span style={{ color: DLGWARN, fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap' }}>Ekki allir lyklar = 100%</span>
                     }
                 </Box>
-
                 {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
             </Box>
 
-            {/* Danger zone — only for active apartments */}
             {!isDisabled && (
                 <Box sx={{ borderTop: `1px solid ${DLGBORDER}`, p: '12px 24px', background: DLGBGTB, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
                     <Box>
@@ -723,7 +847,6 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
                 </Box>
             )}
 
-            {/* Footer */}
             <Box sx={{ p: '14px 20px', borderTop: `1px solid ${DLGBORDER}`, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                 <Button sx={ghostButtonSx} onClick={onClose}>Hætta við</Button>
                 <Button variant="contained" sx={primaryButtonSx} disabled={!isValid || saving} onClick={isDisabled ? handleEnable : handleSave}>
@@ -733,13 +856,13 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
         </Dialog>
 
         <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
-            <DialogTitle>Óvirkja íbúð</DialogTitle>
-            <DialogContent>
+            <Box sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>Óvirkja íbúð</Typography>
                 <DialogContentText>
                     Ertu viss um að þú viljir óvirkja íbúð <strong>{apt.anr}</strong>?
                 </DialogContentText>
-            </DialogContent>
-            <DialogActions>
+            </Box>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
                 <Button sx={ghostButtonSx} onClick={() => setConfirmDelete(false)}>Hætta við</Button>
                 <Button variant="contained" sx={destructiveButtonSx} disabled={deleting} onClick={handleDisable}>
                     {deleting ? <CircularProgress size={18} color="inherit" /> : 'Já, óvirkja'}
@@ -750,6 +873,7 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
     );
 }
 
+/* ── OwnerDialog (three-step add) ───────────────────────────────── */
 function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
     const { assocParam } = React.useContext(UserContext);
     const [kennitala, setKennitala] = useState('');
@@ -771,8 +895,7 @@ function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
     const currentPayer = apt.owners.find(o => o.is_payer);
 
     const handleAdd = async () => {
-        setError('');
-        setSaving(true);
+        setError(''); setSaving(true);
         try {
             const resp = await apiFetch(`${API_URL}/Owner${assocParam}`, {
                 method: 'POST',
@@ -796,7 +919,6 @@ function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
         <Dialog open={open} onClose={onClose} maxWidth={false}
             PaperProps={{ sx: { width: 620, maxWidth: '95vw', borderRadius: '12px', overflow: 'hidden' } }}
         >
-            {/* Header */}
             <Box sx={{ p: '20px 24px 16px', borderBottom: `1px solid ${DLGBORDER}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Box sx={{ display: 'flex', gap: 1, mb: 0.75, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -813,7 +935,6 @@ function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
                 </IconButton>
             </Box>
 
-            {/* Body */}
             <Box sx={{ p: '20px 24px', overflowY: 'auto' }}>
                 <DlgSection>① Þjóðskrárfletting</DlgSection>
                 <TextField
@@ -919,7 +1040,6 @@ function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
                 {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
             </Box>
 
-            {/* Footer */}
             <Box sx={{ p: '14px 20px', borderTop: `1px solid ${DLGBORDER}`, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                 <Button sx={ghostButtonSx} onClick={onClose}>Hætta við</Button>
                 <Button variant="contained" sx={primaryButtonSx} disabled={!isValid || saving} onClick={handleAdd}>
