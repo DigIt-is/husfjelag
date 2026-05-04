@@ -111,8 +111,12 @@ function NoAssociationView() {
   );
 }
 
-// Renders children only after user + associations are resolved; shows spinner in place meanwhile.
-// Redirects superadmins with no association to /superadmin, regular users to a waiting view.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  React.useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
+
 function ProtectedRoute({ children }) {
   const { user, initializing, associations } = React.useContext(UserContext);
   const location = useLocation();
@@ -211,6 +215,7 @@ function App() {
     <UserContext.Provider value={{ user, setUser, associations, currentAssociation, setCurrentAssociation, stopImpersonating, impersonating, assocParam, initializing }}>
       <ThemeProvider theme={theme}>
         <Router>
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/skilmalar" element={<SkilmalarPage />} />
