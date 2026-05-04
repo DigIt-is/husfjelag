@@ -66,8 +66,13 @@ function AuthCallback() {
                     const user = { ...profile, token };
                     localStorage.setItem('user', JSON.stringify(user));
                     setUser(user);
-                    const missingInfo = !profile.email || !profile.phone;
-                    navigate(missingInfo ? '/profile' : '/dashboard');
+                    if (!profile.terms_accepted) {
+                        navigate('/terms-accept');
+                    } else if (!profile.email || !profile.phone) {
+                        navigate('/profile');
+                    } else {
+                        navigate('/dashboard');
+                    }
                 } else {
                     navigate(`/login?error=profile_fetch_failed_${profileResp.status}`);
                 }
