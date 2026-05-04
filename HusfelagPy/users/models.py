@@ -42,6 +42,7 @@ class AuditLog(models.Model):
 
     created_at = models.DateTimeField(default=timezone.now)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
+    association = models.ForeignKey('associations.Association', on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs')
     action = models.CharField(max_length=32, choices=ACTIONS)
     value = models.CharField(max_length=255, blank=True, default='')
 
