@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Box, Typography, Button, Collapse } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -25,7 +25,7 @@ function CtaBar({ mini, onSignup }) {
         }}>
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5 }}>
                 <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 15, letterSpacing: '0.06em' }}>
-                    HÚSFJELAG
+                    HÚSFJELAGIÐ
                 </Typography>
                 {!mini && (
                     <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>
@@ -248,7 +248,7 @@ function FeatureGrid() {
         <Box sx={{ background: '#fafafa', borderTop: '1px solid #eee', borderBottom: '1px solid #eee' }}>
             <Box sx={{ maxWidth: 1060, mx: 'auto', px: { xs: 3, md: 5 }, py: { xs: 5, md: 8 } }}>
                 <Typography variant="h5" sx={{ fontWeight: 600, color: '#111', mb: 0.75 }}>
-                    Allt sem húsfélag þarfnast
+                    Allt sem húsfélagið þarfnast
                 </Typography>
                 <Typography sx={{ fontSize: 14, color: '#888', mb: 4.5 }}>
                     Áætlun, innheimta og fjárhagur — ein lausn
@@ -325,7 +325,7 @@ function Pitch() {
     const points = [
         { kw: 'Sjálfvirkni',           txt: 'Settu upp reksturinn einu sinni — kerfið sér um að reikna greiðslur í hússjóðinn, innheimtu og bókhaldið sjálfkrafa.' },
         { kw: '24/7 aðgangur',         txt: 'Eigendur íbúða fá aðgang að einföldu yfirliti um húsfélagið og ársskýrslu fyrir aðalfund.' },
-        { kw: 'Fullt af sparnaði',     txt: 'Húsfjelag er miklu ódýrara en hefðbundin húsfélagaþjónusta — og krefst engrar sérþekkingar.' },
+        { kw: 'Fullt af sparnaði',     txt: 'Húsfjelagið er miklu ódýrara en hefðbundin húsfélagaþjónusta — og krefst engrar sérþekkingar.' },
         { kw: 'Einfaldleiki',          txt: 'Ef eitthvað þarfnast athygli færðu tilkynningu í tölvupósti — þú þarft ekki að fylgjast stöðugt með.' },
     ];
 
@@ -394,11 +394,101 @@ function Pitch() {
     );
 }
 
+function Pricing({ onSignup }) {
+    const perks = [
+        { title: 'Frítt í 30 daga', sub: 'Ekkert kreditkort þarf við skráningu' },
+        { title: '50% kynningarafsláttur', sub: 'Fyrstu 6 mánuðina eftir prufutíma' },
+        { title: 'Enginn uppsagnarfrestur', sub: 'Segðu upp hvenær sem er innan kerfisins' },
+        { title: 'Fullur aðgangur frá fyrsta degi', sub: 'Allir eiginleikar í boði strax' },
+    ];
+
+    return (
+        <Box sx={{ background: '#fafafa', borderTop: '1px solid #eee', borderBottom: '1px solid #eee' }}>
+            <Box sx={{ maxWidth: 1060, mx: 'auto', px: { xs: 3, md: 5 }, py: { xs: 6, md: 10 } }}>
+                <Box sx={{
+                    background: '#1D366F', borderRadius: 3, overflow: 'hidden',
+                    boxShadow: '0 16px 48px rgba(29,54,111,0.28)',
+                    display: 'flex', flexDirection: { xs: 'column', md: 'row' },
+                }}>
+                    {/* Left — price + CTA */}
+                    <Box sx={{
+                        flex: { md: '0 0 360px' },
+                        px: { xs: 4, md: 5.5 }, py: { xs: 5, md: 6.5 },
+                        borderRight: { md: '1px solid rgba(255,255,255,0.1)' },
+                        borderBottom: { xs: '1px solid rgba(255,255,255,0.1)', md: 'none' },
+                        display: 'flex', flexDirection: 'column',
+                        position: 'relative', overflow: 'hidden',
+                    }}>
+                        {/* decorative blob */}
+                        <Box sx={{ position: 'absolute', width: 240, height: 240, borderRadius: '50%', background: 'rgba(8,192,118,0.07)', top: -80, right: -80, pointerEvents: 'none' }} />
+
+                        <Typography sx={{ color: '#08C076', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', mb: 3.5, position: 'relative' }}>
+                            Áskrift
+                        </Typography>
+
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 0.5, position: 'relative' }}>
+                            <Typography sx={{ color: '#fff', fontSize: 72, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em' }}>490</Typography>
+                            <Box sx={{ mt: 1.5 }}>
+                                <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 20, fontWeight: 400, lineHeight: 1 }}>kr.</Typography>
+                            </Box>
+                        </Box>
+                        <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, mb: 0.25 }}>á mánuði</Typography>
+                        <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: 12, mb: 4.5 }}>fyrir hverja skráða íbúð</Typography>
+
+                        <Button onClick={onSignup} sx={{
+                            background: '#08C076', color: '#fff',
+                            borderRadius: '24px', py: 1.375, px: 3.5,
+                            fontSize: 14, fontWeight: 600, textTransform: 'none',
+                            alignSelf: 'flex-start',
+                            '&:hover': { background: '#06a866' },
+                            position: 'relative',
+                        }}>
+                            Byrjaðu frítt →
+                        </Button>
+                        <Typography sx={{ color: 'rgba(255,255,255,0.22)', fontSize: 11, mt: 1.5, lineHeight: 1.5 }}>
+                            Reikningur sendur í netbanka húsfélagsins að prufutíma liðnum
+                        </Typography>
+                    </Box>
+
+                    {/* Right — perks */}
+                    <Box sx={{
+                        flex: 1, px: { xs: 4, md: 5.5 }, py: { xs: 5, md: 6.5 },
+                        background: 'rgba(255,255,255,0.04)',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                    }}>
+                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', mb: 3 }}>
+                            Hvað er innifalið
+                        </Typography>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: { xs: 2.5, md: 3 } }}>
+                            {perks.map(p => (
+                                <Box key={p.title} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                                    <Box sx={{
+                                        flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+                                        background: 'rgba(8,192,118,0.15)',
+                                        border: '1px solid rgba(8,192,118,0.35)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', mt: '2px',
+                                    }}>
+                                        <Typography sx={{ color: '#08C076', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography sx={{ color: '#fff', fontSize: 14, fontWeight: 500, lineHeight: 1.3, mb: 0.4 }}>{p.title}</Typography>
+                                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, lineHeight: 1.5 }}>{p.sub}</Typography>
+                                    </Box>
+                                </Box>
+                            ))}
+                        </Box>
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
 function Faq() {
     const items = [
         {
             question: 'Hvað kostar kerfið?',
-            answer: 'Húsfjelag er í þróun og verðið hefur ekki verið ákveðið. Við munum bjóða upp á einfaldar og gagnsæjar lausnir sem henta húsfélögum af öllum stærðum.',
+            answer: '490 kr. á mánuði fyrir hverja skráða íbúð. Þú getur prófað kerfið frítt í 30 daga — ekkert kreditkort þarf. Fyrstu 6 mánuðina eftir prufutíma færðu 50% afslátt. Ekkert uppsagnarfrestur — þú getur sagt upp hvenær sem er.',
         },
         {
             question: 'Þarf ég að setja upp eitthvað til að byrja?',
@@ -453,13 +543,19 @@ function Footer({ onSignup }) {
             }}>
                 <Box>
                     <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 16, letterSpacing: '0.06em', mb: 0.75 }}>
-                        HÚSFJELAG
+                        HÚSFJELAGIÐ
                     </Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, mb: 0.5 }}>
                         Hugbúnaður fyrir íslensk húsfélög
                     </Typography>
+                    <Typography sx={{ fontSize: 12 }}>
+                        <a href={['mailto', 'info@husfjelag.is'].join(':')}
+                           style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>
+                            {'info'}<span aria-hidden="true">&#64;</span>{'husfjelag.is'}
+                        </a>
+                    </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', sm: 'flex-end' }, gap: 1.5 }}>
                     <Button onClick={onSignup} sx={{
                         background: '#08C076', color: '#fff', borderRadius: '20px',
                         px: 2, py: 0.75, fontSize: 12, fontWeight: 600, textTransform: 'none',
@@ -467,6 +563,10 @@ function Footer({ onSignup }) {
                     }}>
                         Innskráning →
                     </Button>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Link to="/skilmalar" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none' }}>Skilmálar</Link>
+                        <Link to="/personuvernd" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none' }}>Persónuvernd</Link>
+                    </Box>
                 </Box>
             </Box>
             <Box sx={{
@@ -474,7 +574,7 @@ function Footer({ onSignup }) {
                 borderTop: '1px solid rgba(255,255,255,0.1)', py: 2,
             }}>
                 <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>
-                    © {new Date().getFullYear()} Húsfjelag. Öll réttindi áskilin.
+                    © {new Date().getFullYear()} Húsfjelagið ehf. · kt. 630218-0120
                 </Typography>
             </Box>
         </Box>
@@ -496,9 +596,10 @@ export default function HomePage() {
         <Box sx={{ minHeight: '100vh', background: '#fff' }}>
             <CtaBar mini={mini} onSignup={onSignup} />
             <Hero onSignup={onSignup} />
-            <Pitch />            
+            <Pitch />
             <Stories />
             <FeatureGrid />
+            <Pricing onSignup={onSignup} />
             <Faq />
             <Footer onSignup={onSignup} />
         </Box>

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class User(models.Model):
@@ -27,3 +28,18 @@ class User(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.kennitala})"
+
+
+class TermsAcceptance(models.Model):
+    """Audit log of user terms acceptance. Never updated — only created."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='terms_acceptance')
+    kennitala = models.CharField(max_length=10)   # denormalised for audit durability
+    name = models.CharField(max_length=255)        # denormalised for audit durability
+    accepted_at = models.DateTimeField(default=timezone.now)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'users_termsacceptance'
+
+    def __str__(self):
+        return f"{self.name} ({self.kennitala}) accepted at {self.accepted_at}"

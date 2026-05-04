@@ -26,6 +26,9 @@ import BankHealthPage from './controlers/BankHealthPage';
 import AdminCategoriesPage from './controlers/AdminCategoriesPage';
 import AdminAccountingKeysPage from './controlers/AdminAccountingKeysPage';
 import RegistrationRequestPage from './controlers/RegistrationRequestPage';
+import SkilmalarPage from './controlers/SkilmalarPage';
+import PersonuverndPage from './controlers/PersonuverndPage';
+import TermsAcceptPage from './controlers/TermsAcceptPage';
 import { apiFetch } from './api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
@@ -109,8 +112,12 @@ function NoAssociationView() {
   );
 }
 
-// Renders children only after user + associations are resolved; shows spinner in place meanwhile.
-// Redirects superadmins with no association to /superadmin, regular users to a waiting view.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  React.useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
+
 function ProtectedRoute({ children }) {
   const { user, initializing, associations } = React.useContext(UserContext);
   const location = useLocation();
@@ -121,6 +128,11 @@ function ProtectedRoute({ children }) {
     </Box>
   );
   if (!user) return <Navigate to="/login" replace />;
+
+  // Terms must be accepted before anything else
+  if (!user.terms_accepted && location.pathname !== '/terms-accept') {
+    return <Navigate to="/terms-accept" replace />;
+  }
 
   // Routes that are valid even without an association
   const isAdminRoute = location.pathname.startsWith('/superadmin') ||
@@ -209,8 +221,12 @@ function App() {
     <UserContext.Provider value={{ user, setUser, associations, currentAssociation, setCurrentAssociation, stopImpersonating, impersonating, assocParam, initializing }}>
       <ThemeProvider theme={theme}>
         <Router>
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/skilmalar" element={<SkilmalarPage />} />
+            <Route path="/personuvernd" element={<PersonuverndPage />} />
+            <Route path="/terms-accept" element={<ProtectedRoute><TermsAcceptPage /></ProtectedRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/logout" element={<Logout />} />
             <Route path="/auth/callback" element={<AuthCallback />} />

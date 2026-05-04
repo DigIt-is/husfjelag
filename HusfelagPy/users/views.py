@@ -9,8 +9,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
-from .models import User
+from .models import User, TermsAcceptance
 from .serializers import UserSerializer
+
+
+def _get_client_ip(request):
+    xff = request.META.get('HTTP_X_FORWARDED_FOR')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
 from .oidc import build_auth_url, exchange_code, generate_pkce_pair, generate_state, validate_id_token, create_access_token
 
 logger = logging.getLogger(__name__)
@@ -72,6 +79,25 @@ class UserView(APIView):
         user.phone = phone or None
         user.save(update_fields=["name", "email", "phone"])
         return Response(UserSerializer(user).data)
+
+
+class TermsAcceptView(APIView):
+    """POST /auth/terms/accept — record that the authenticated user accepted the terms."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if hasattr(user, 'terms_acceptance'):
+            return Response(UserSerializer(user).data)
+        TermsAcceptance.objects.create(
+            user=user,
+            kennitala=user.kennitala,
+            name=user.name,
+            ip_address=_get_client_ip(request),
+        )
+        # Re-fetch to pick up the new reverse relation
+        user_fresh = User.objects.select_related('terms_acceptance').get(pk=user.pk)
+        return Response(UserSerializer(user_fresh).data, status=status.HTTP_201_CREATED)
 
 
 class OIDCLoginView(APIView):
