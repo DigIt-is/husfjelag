@@ -93,8 +93,8 @@ export default function PersonuverndPage() {
 
                     <Section n="3" title="Hlutverk — ábyrgðaraðili og vinnsluaðili">
                         <Ul items={[
-                            'Húsfjelagið er ábyrgðaraðili persónuupplýsinga um notendur kerfisins (t.d. formenn og gjaldkera húsfélaga sem stofna aðgang).',
-                            'Húsfjelagið er vinnsluaðili persónuupplýsinga sem notendur skrá um íbúa og félags­menn í húsfélaginu. Húsfélagið sjálft er ábyrgðaraðili þeirra upplýsinga.',
+                            'Húsfjelagið er ábyrgðaraðili persónuupplýsinga um notendur kerfisins.',
+                            'Húsfjelagið er vinnsluaðili persónuupplýsinga sem notendur (t.d. formenn og gjaldkera húsfélaga) skrá um íbúa og félags­menn í húsfélaginu. Húsfélagið sjálft er ábyrgðaraðili þeirra upplýsinga.',
                         ]} />
                     </Section>
 
@@ -108,7 +108,7 @@ export default function PersonuverndPage() {
                             Auðkenning notenda fer fram hjá ytri auðkenningarþjónustu. <strong>Húsfjelagið geymir ekki lykilorð notenda.</strong>
                         </P>
                         <P>
-                            Innheimta er framkvæmd með því að senda reikning á kennitölu í netbanka. <strong>Húsfjelagið geymir ekki kortaupplýsingar eða aðrar greiðsluupplýsingar.</strong>
+                            Innheimta er framkvæmd með því að senda reikning á kennitölu húsfélags í netbanka. <strong>Húsfjelagið geymir ekki kortaupplýsingar eða aðrar greiðsluupplýsingar.</strong>
                         </P>
                         <P><strong>Um íbúa/félags­menn (sem notandi skráir):</strong></P>
                         <Ul items={[
@@ -121,11 +121,11 @@ export default function PersonuverndPage() {
                     <Section n="5" title="Tilgangur og lagagrundvöllur">
                         <P>Við vinnum persónuupplýsingar til að:</P>
                         <Ul items={[
-                            'veita aðgang að þjónustunni og halda henni virkri (samningur),',
-                            'innheimta greiðslur (samningur og lagaskylda),',
-                            'uppfylla bókhaldsskyldur (lagaskylda),',
-                            'bæta og þróa þjónustuna (lögmætir hagsmunir),',
-                            'senda þjónustutilkynningar (samningur).',
+                            'veita aðgang að þjónustunni og halda henni virkri,',
+                            'innheimta greiðslur fyrir áskrift,',
+                            'uppfylla bókhaldsskyldur okkar,',
+                            'bæta og þróa þjónustuna,',
+                            'senda þjónustutilkynningar til notenda.',
                         ]} />
                     </Section>
 
@@ -144,13 +144,13 @@ export default function PersonuverndPage() {
 
                     <Section n="7" title="Geymslutími">
                         <P>
-                            Við geymum persónuupplýsingar á meðan notandi er með virkan aðgang og í allt að 7 ár eftir uppsögn í samræmi við bókhaldslög. Aðrar upplýsingar er eytt þegar tilgangi vinnslunnar er náð.
+                            Við geymum persónuupplýsingar á meðan notandi er með virkan aðgang og í allt að 7 ár eftir uppsögn í samræmi við bókhaldslög. Öðrum upplýsingar er eytt þegar tilgangi vinnslunnar er náð.
                         </P>
                     </Section>
 
                     <Section n="8" title="Öryggi">
                         <P>
-                            Við beitum viðeigandi tæknilegum og skipulegum ráðstöfunum til að vernda upplýsingar, þar á meðal dulkóðun gagna í flutningi og geymslu, aðgangsstýringum og reglulegum öryggis­prófunum.
+                            Við beitum viðeigandi tæknilegum og skipulegum ráðstöfunum til að vernda gögn og upplýsingar, þar á meðal dulkóðun gagna í flutningi og geymslu, aðgangsstýringum og reglulegum öryggis­prófunum.
                         </P>
                     </Section>
 
@@ -178,7 +178,7 @@ export default function PersonuverndPage() {
 
                     <Section n="11" title="Breytingar">
                         <P>
-                            Við getum uppfært þessa stefnu. Verulegar breytingar eru tilkynntar með minnst 30 daga fyrirvara innan kerfisins eða með tölvupósti.
+                            Húsfjelagið getur uppfært þessa stefnu. Verulegar breytingar eru tilkynntar með minnst 30 daga fyrirvara innan kerfisins eða með tölvupósti. Áframhaldandi notkun eftir gildistöku telst samþykki á breytingum.
                         </P>
                     </Section>
 

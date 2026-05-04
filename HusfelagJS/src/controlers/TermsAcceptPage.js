@@ -10,7 +10,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
 const POINTS = [
     {
         title: 'Hugbúnaðarþjónusta — ekki bókhaldskerfi',
-        body: 'Kerfið er verkfæri til umsýslu, en er ekki löglegt bókhaldskerfi skv. lögum nr. 145/1994. Þú ber ábyrgð á bókhaldsskyldum þínum.',
+        body: 'Kerfið er verkfæri til að halda utan um húsfélög, en er ekki löglegt bókhaldskerfi skv. lögum nr. 145/1994. Þú ber ábyrgð á bókhaldsskyldum húsfélagsins.',
     },
     {
         title: 'Þjónustan er veitt „eins og hún er"',
@@ -18,11 +18,11 @@ const POINTS = [
     },
     {
         title: 'Persónuvernd',
-        body: 'Við vinnum persónuupplýsingar í samræmi við íslensk lög og GDPR. Þú ber ábyrgð á þeim gögnum sem þú skráir um aðra.',
+        body: 'Við vinnum persónuupplýsingar í samræmi við íslensk lög og GDPR. Þú ber ábyrgð á þeim gögnum sem þú skráir um aðra, við erum vinnsluaðili.',
     },
     {
         title: 'Verð og uppsögn',
-        body: '490 kr. á mánuði fyrir hverja skráða íbúð. Enginn uppsagnarfrestur — þú getur sagt upp hvenær sem er. Verðbreytingar tilkynntar 30 dögum fyrirfram.',
+        body: 'Húsfélagið þitt greiðir mánaðargjald fyrir hverja skráða íbúð. Þú getur sagt upp þjónustunni hvenær sem er. Verðbreytingar tilkynntar 30 dögum fyrirfram.',
     },
 ];
 
@@ -77,7 +77,7 @@ export default function TermsAcceptPage() {
                         Skilmálar
                     </Typography>
                     <Typography variant="h5" sx={{ fontWeight: 700, color: '#111', mb: 0.75 }}>
-                        Samþykki notendaskilmála
+                        Samþykkja notendaskilmála
                     </Typography>
                     <Typography sx={{ fontSize: 13.5, color: '#666', mb: 3, lineHeight: 1.6 }}>
                         Áður en þú hefur notkun þarftu að samþykkja notendaskilmála Húsfjelagsins ehf.
@@ -106,11 +106,14 @@ export default function TermsAcceptPage() {
                     {/* Link to full terms */}
                     <Box sx={{ p: '10px 14px', background: '#f7f8fc', borderRadius: 1.5, border: '1px solid #eee', mb: 3 }}>
                         <Typography sx={{ fontSize: 12.5, color: '#555' }}>
-                            Þetta er samantekt. Lestu{' '}
-                            <Link to="/skilmalar" target="_blank" style={{ color: '#1D366F', fontWeight: 600 }}>
-                                fullständiga notendaskilmálana →
-                            </Link>
+                            Þetta er stutta samantektin á skilmálum.
                         </Typography>
+                        <Typography sx={{ fontSize: 12.5, color: '#555' }}>
+                            Ef þú ert í stuði, eða hefur spurninga, lestu þá endilega {' '}
+                            <Link to="/skilmalar" target="_blank" style={{ color: '#1D366F', fontWeight: 600 }}>
+                                alla notendaskilmálana.
+                            </Link>
+                        </Typography>                        
                     </Box>
 
                     {/* Checkbox */}

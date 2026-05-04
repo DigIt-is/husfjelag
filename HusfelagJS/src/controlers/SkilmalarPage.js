@@ -63,7 +63,7 @@ export default function SkilmalarPage() {
             {/* Content */}
             <Box sx={{ maxWidth: 780, mx: 'auto', px: { xs: 3, md: 5 }, py: { xs: 6, md: 10 } }}>
                 <Typography sx={{ color: '#08C076', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', mb: 1.5 }}>
-                    Lögleg skilmálar
+                    Skilmálar
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: '#111', mb: 0.75 }}>
                     Notendaskilmálar
@@ -76,7 +76,7 @@ export default function SkilmalarPage() {
 
                     <Section n="1" title="Almennt">
                         <P>
-                            Þessir skilmálar gilda um afnot af hugbúnaðarþjónustu Húsfjelagsins ehf. (hér eftir „Húsfjelagið" eða „þjónustan"), sem er vefbundin þjónusta (SaaS) ætluð húsfélögum til að halda utan um fjármál, innheimtu húsgjalda og bókhald.
+                            Þessir skilmálar gilda um afnot af hugbúnaðarþjónustu Húsfjelagsins ehf. (hér eftir „Húsfjelagið" eða „þjónustan"), sem er vefbundin þjónusta (SaaS) ætluð húsfélögum til að halda utan um íbúðir, eigendur, fjármál, innheimtu húsgjalda og kostnaðarliði húsfélagsins.
                         </P>
                         <P>
                             Með því að stofna húsfélag í kerfinu eða nota þjónustuna á annan hátt samþykkir notandinn skilmála þessa.
@@ -88,13 +88,13 @@ export default function SkilmalarPage() {
                             Notandi fær aðgang að þjónustunni gegn greiðslu mánaðargjalds samkvæmt verðskrá hverju sinni. Aðgangurinn er persónulegur og óheimilt er að deila aðgangsupplýsingum með öðrum.
                         </P>
                         <P>
-                            Notandi ber ábyrgð á öllum aðgerðum sem framkvæmdar eru með aðgangi hans og á að tilkynna Húsfjelaginu án tafar ef grunur leikur á misnotkun.
+                            Notandi ber ábyrgð á öllum aðgerðum sem framkvæmdar eru með aðgangi hans og ber að tilkynna Húsfjelaginu án tafar ef grunur leikur á misnotkun.
                         </P>
                     </Section>
 
                     <Section n="3" title="Hlutverk Húsfjelagsins">
                         <P>
-                            Húsfjelagið veitir aðgang að hugbúnaði til umsýslu húsfélaga. Húsfjelagið er ekki aðili að rekstri húsfélaga, tekur ekki að sér bókhaldseða endurskoðunarþjónustu og veitir ekki lögfræði- eða fjármálaráðgjöf.
+                            Húsfjelagið veitir aðgang að hugbúnaði til umsýslu húsfélaga. Húsfjelagið er ekki aðili að rekstri húsfélaga, tekur ekki að sér bókhalds- eða endurskoðunarþjónustu og veitir ekki lögfræði- eða fjármálaráðgjöf.
                         </P>
                         <P>
                             <strong>Kerfið er ekki löglegt bókhaldskerfi</strong> í skilningi bókhaldslaga nr. 145/1994 og er ekki ætlað að koma í stað slíks kerfis þar sem þess er krafist. Notandi ber ábyrgð á því að uppfylla bókhaldsskyldur sínar með viðeigandi hætti.
@@ -109,12 +109,13 @@ export default function SkilmalarPage() {
                             Kerfið kann að vísa notendum á þjónustu þriðju aðila, svo sem bókhaldsþjónustu, endurskoðendur, þrif, viðhald, tryggingar eða annað. Slíkar tilvísanir eru eingöngu til upplýsinga og fela ekki í sér meðmæli eða ábyrgð af hálfu Húsfjelagsins ehf.
                         </P>
                         <P>
-                            Öll viðskipti, samningar og samskipti við þriðju aðila eru alfarið á milli notandans og viðkomandi þjónustuaðila. Húsfjelagið ber <strong>enga ábyrgð</strong> á gæðum, framkvæmd, verðlagningu, tjóni eða öðrum atriðum sem upp kunna að koma í tengslum við slík viðskipti.
+                            Öll viðskipti, samningar og samskipti við þriðju aðila eru alfarið á milli notandans og viðkomandi þjónustuaðila. Húsfjelagið ber enga ábyrgð á gæðum, framkvæmd, verðlagningu, tjóni eða öðrum atriðum sem upp kunna að koma í tengslum við slík viðskipti.
                         </P>
                     </Section>
 
                     <Section n="5" title="Ábyrgðartakmörkun">
-                        <P>Þjónustan er veitt „eins og hún er" (<em>as is</em>). Húsfjelagið ber <strong>enga ábyrgð</strong> á:</P>
+                        <P>Þjónustan er veitt „eins og hún er" (<em>as is</em>).</P>
+                        <P>Húsfjelagið ber <strong>enga ábyrgð</strong> á:</P>
                         <Ul items={[
                             'því hvernig notandi nýtir sér upplýsingar eða útreikninga úr kerfinu,',
                             'ákvörðunum sem teknar eru á grundvelli gagna í kerfinu,',
@@ -123,7 +124,7 @@ export default function SkilmalarPage() {
                             'truflunum á þjónustunni vegna viðhalds, uppfærslna eða atvika sem eru utan stjórnar Húsfjelagsins.',
                         ]} />
                         <P>
-                            Heildarábyrgð Húsfjelagsins, ef á reynir, takmarkast við þá fjárhæð sem notandi hefur greitt fyrir þjónustuna síðustu 12 mánuði fyrir tjónsatvik.
+                            Heildarábyrgð Húsfjelagsins fyrir tjónsatvik, ef á reynir, takmarkast við þá fjárhæð sem notandi hefur greitt fyrir þjónustuna síðustu 12 mánuði.
                         </P>
                     </Section>
 
@@ -140,7 +141,7 @@ export default function SkilmalarPage() {
                             Mánaðargjald er innheimt samkvæmt gildandi verðskrá. Húsfjelagið áskilur sér rétt til að breyta verðskrá með minnst 30 daga fyrirvara, sem tilkynnt er með tölvupósti eða innan kerfisins.
                         </P>
                         <P>
-                            Ef greiðsla berst ekki getur Húsfjelagið lokað fyrir aðgang að þjónustunni þar til skuld er greidd.
+                            Ef greiðsla berst ekki getur Húsfjelagið lokað fyrir aðgang að þjónustunni þar til skuld er greidd. Vanskil eru sett í innheimtuþjónustu.
                         </P>
                     </Section>
 
