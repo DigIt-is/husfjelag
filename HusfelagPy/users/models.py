@@ -36,6 +36,8 @@ class AuditLog(models.Model):
         ('chair_changed', 'Chair changed'),
         ('cfo_changed', 'CFO changed'),
         ('association_new', 'Association created'),
+        ('budget_new', 'Budget created'),
+        ('owner_new', 'Owner added'),
     ]
 
     created_at = models.DateTimeField(default=timezone.now)

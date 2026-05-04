@@ -563,6 +563,7 @@ class ApartmentOwnerView(APIView):
         if not created:
             return Response({"detail": "Þessi eigandi er þegar skráður á þessa íbúð."}, status=status.HTTP_409_CONFLICT)
 
+        AuditLog.objects.create(user=request.user, action='owner_new', value=f"{apartment_id}:{kennitala}")
         return Response({"id": user.id, "name": user.name, "kennitala": user.kennitala}, status=status.HTTP_201_CREATED)
 
     def delete(self, request, apartment_id, owner_id):
@@ -639,6 +640,7 @@ class OwnerView(APIView):
             existing.save(update_fields=["share", "is_payer", "deleted"])
             if effective_payer:
                 _set_payer(apartment, existing.id)
+            AuditLog.objects.create(user=request.user, action='owner_new', value=f"{apartment_id}:{kennitala}")
             return Response(OwnershipSerializer(existing).data, status=status.HTTP_200_OK)
 
         ownership = ApartmentOwnership.objects.create(
@@ -646,6 +648,7 @@ class OwnerView(APIView):
         )
         if effective_payer:
             _set_payer(apartment, ownership.id)
+        AuditLog.objects.create(user=request.user, action='owner_new', value=f"{apartment_id}:{kennitala}")
         return Response(OwnershipSerializer(ownership).data, status=status.HTTP_201_CREATED)
 
     def put(self, request, ownership_id):
@@ -1725,6 +1728,7 @@ class BudgetWizardView(APIView):
             ])
 
         new_budget_with_items = Budget.objects.prefetch_related("items__category").get(id=new_budget.id)
+        AuditLog.objects.create(user=request.user, action='budget_new', value=str(new_budget.id))
         return Response(
             BudgetSerializer(new_budget_with_items).data,
             status=status.HTTP_201_CREATED,
