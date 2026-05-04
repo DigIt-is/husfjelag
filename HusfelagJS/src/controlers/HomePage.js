@@ -488,11 +488,11 @@ function Faq() {
     const items = [
         {
             question: 'Hvað kostar kerfið?',
-            answer: '490 kr. á mánuði fyrir hverja skráða íbúð. Þú getur prófað kerfið frítt í 30 daga — ekkert kreditkort þarf. Fyrstu 6 mánuðina eftir prufutíma færðu 50% afslátt. Ekkert uppsagnarfrestur — þú getur sagt upp hvenær sem er.',
+            answer: '490 kr. á mánuði fyrir hverja skráða íbúð. Þú getur prófað kerfið frítt í 30 daga og fyrstu 6 mánuðina eftir prufutíma færðu 50% afslátt. Enginn uppsagnarfrestur — þú getur sagt upp hvenær sem er.',
         },
         {
             question: 'Þarf ég að setja upp eitthvað til að byrja?',
-            answer: 'Já, þú skráir þig inn, stofnar húsfélagið þitt með kennitölu ásamt upplýsingum um formann og byrjar að nota kerfið strax í vafranum.',
+            answer: 'Já, þú skráir þig inn, stofnar húsfélagið þitt með kennitölu ásamt upplýsingum um formann og byrjar að nota kerfið stuttu síðar þegar við höfum staðfest húsfélagið.',
         },
         {
             question: 'Get ég flutt inn gögn frá banka?',
@@ -556,13 +556,6 @@ function Footer({ onSignup }) {
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', sm: 'flex-end' }, gap: 1.5 }}>
-                    <Button onClick={onSignup} sx={{
-                        background: '#08C076', color: '#fff', borderRadius: '20px',
-                        px: 2, py: 0.75, fontSize: 12, fontWeight: 600, textTransform: 'none',
-                        '&:hover': { background: '#06a866' },
-                    }}>
-                        Innskráning →
-                    </Button>
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <Link to="/skilmalar" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none' }}>Skilmálar</Link>
                         <Link to="/personuvernd" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none' }}>Persónuvernd</Link>
@@ -598,8 +591,8 @@ export default function HomePage() {
             <Hero onSignup={onSignup} />
             <Pitch />
             <Stories />
+            <Pricing onSignup={onSignup} />            
             <FeatureGrid />
-            <Pricing onSignup={onSignup} />
             <Faq />
             <Footer onSignup={onSignup} />
         </Box>

@@ -24,6 +24,7 @@ from .serializers import (
     CategorySerializer, BudgetSerializer, BudgetItemSerializer, AssociationAccessSerializer,
     AccountingKeySerializer, BankAccountSerializer, TransactionSerializer,
 )
+from users.models import AuditLog
 from .scraper import lookup_association, scrape_hms_apartments, HmsScrapeError
 from .skattur_cloud import fetch_legal_entity, extract_prokuruhafar, parse_entity_for_association
 from .importers import BANK_PARSERS, detect_bank, detect_duplicates
@@ -206,6 +207,7 @@ class AssociationView(APIView):
                 return Response({"detail": "Þetta húsfélag er þegar skráð í kerfið."}, status=status.HTTP_409_CONFLICT)
             raise
 
+        AuditLog.objects.create(user=user, action='association_new', value=association.ssn, association=association)
         return Response(AssociationSerializer(association).data, status=status.HTTP_201_CREATED)
 
 
@@ -254,10 +256,12 @@ class AssociationRoleView(APIView):
             err = _assign_role(chair_kt, AssociationRole.CHAIR)
             if err:
                 return err
+            AuditLog.objects.create(user=request.user, action='chair_changed', value=chair_kt, association=association)
         if cfo_kt:
             err = _assign_role(cfo_kt, AssociationRole.CFO)
             if err:
                 return err
+            AuditLog.objects.create(user=request.user, action='cfo_changed', value=cfo_kt, association=association)
 
         association.board_changed_at = timezone.now()
         association.board_changed_by = request.user
@@ -559,6 +563,7 @@ class ApartmentOwnerView(APIView):
         if not created:
             return Response({"detail": "Þessi eigandi er þegar skráður á þessa íbúð."}, status=status.HTTP_409_CONFLICT)
 
+        AuditLog.objects.create(user=request.user, action='owner_new', value=f"{apartment_id}:{kennitala}", association_id=apartment.association_id)
         return Response({"id": user.id, "name": user.name, "kennitala": user.kennitala}, status=status.HTTP_201_CREATED)
 
     def delete(self, request, apartment_id, owner_id):
@@ -635,6 +640,7 @@ class OwnerView(APIView):
             existing.save(update_fields=["share", "is_payer", "deleted"])
             if effective_payer:
                 _set_payer(apartment, existing.id)
+            AuditLog.objects.create(user=request.user, action='owner_new', value=f"{apartment_id}:{kennitala}", association_id=apartment.association_id)
             return Response(OwnershipSerializer(existing).data, status=status.HTTP_200_OK)
 
         ownership = ApartmentOwnership.objects.create(
@@ -642,6 +648,7 @@ class OwnerView(APIView):
         )
         if effective_payer:
             _set_payer(apartment, ownership.id)
+        AuditLog.objects.create(user=request.user, action='owner_new', value=f"{apartment_id}:{kennitala}", association_id=apartment.association_id)
         return Response(OwnershipSerializer(ownership).data, status=status.HTTP_201_CREATED)
 
     def put(self, request, ownership_id):
@@ -1721,6 +1728,7 @@ class BudgetWizardView(APIView):
             ])
 
         new_budget_with_items = Budget.objects.prefetch_related("items__category").get(id=new_budget.id)
+        AuditLog.objects.create(user=request.user, action='budget_new', value=str(new_budget.id), association=association)
         return Response(
             BudgetSerializer(new_budget_with_items).data,
             status=status.HTTP_201_CREATED,
