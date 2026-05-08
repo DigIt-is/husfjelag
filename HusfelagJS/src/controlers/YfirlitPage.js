@@ -98,20 +98,20 @@ export default function YfirlitPage() {
     const nextMonth  = month === 12 ? 1 : month + 1;
     const upcoming = [
         {
+            dateDay: '15', dateMon: 'APR',
+            icon: <AssignmentIcon sx={{ fontSize: 18, color: NAVY }} />, bg: '#eef1f8',
+            title: 'Ársreikningur', meta: 'Senda út ársreikning amk tveimur vikum fyrir aðalfund',
+        },
+        {
+            dateDay: '30', dateMon: 'APR',
+            icon: <EventRepeatIcon sx={{ fontSize: 18, color: NAVY }} />, bg: '#eef1f8',
+            title: 'Aðalfundur', meta: 'Aðalfundur húsfélags skal haldinn ár hvert fyrir lok aprílmánaðar.',
+        },
+        {
             dateDay: '1', dateMon: MONTH_NAMES_SHORT[nextMonth - 1].toUpperCase(),
             icon: <EventRepeatIcon sx={{ fontSize: 18, color: NAVY }} />, bg: '#eef1f8',
             title: 'Innheimta', meta: totalMonthly > 0 ? `${fmtAmount(totalMonthly)} áætlað` : 'Engin innheimta stillt',
-        },
-        {
-            dateDay: '15', dateMon: 'JÚN',
-            icon: <AssignmentIcon sx={{ fontSize: 18, color: NAVY }} />, bg: '#eef1f8',
-            title: 'Ársreikningur', meta: 'Skiladag 15. júní',
-        },
-        {
-            dateDay: '31', dateMon: 'DES',
-            icon: <WarningAmberIcon sx={{ fontSize: 18, color: WARNING }} />, bg: '#fff8e1',
-            title: 'Skattframtal', meta: 'Árslokauppgjör',
-        },
+        },        
     ];
 
     const assocName = reportData?.association?.name || currentAssociation?.name || '';
@@ -172,7 +172,7 @@ export default function YfirlitPage() {
                                 {fmtAmount(unpaidAmount)}
                             </Typography>
                             <Typography sx={{ fontSize: 12, color: '#555', mt: 0.75 }}>
-                                {unpaidCount} íbúð{unpaidCount === 1 ? '' : 'ir'} í vanskilum
+                                {unpaidCount} íbúð{unpaidCount === 1 ? '' : 'ir'} eru með ógreidda reikninga
                             </Typography>
                         </Box>
 
@@ -295,7 +295,7 @@ export default function YfirlitPage() {
             <AnnualStatementDialog
                 open={annualOpen}
                 onClose={() => setAnnualOpen(false)}
-                year={year}
+                year={year - 1}
                 userId={user?.id}
                 assocParam={assocParam}
             />
