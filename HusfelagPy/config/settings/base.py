@@ -114,6 +114,9 @@ KENNI_REDIRECT_URI = env("KENNI_REDIRECT_URI", default="http://localhost:8003/au
 # Skattur Cloud — Icelandic company registry API
 SKATTUR_CLOUD_API_KEY = env("SKATTUR_CLOUD_API_KEY", default="")
 
+# Já / Gagnatorg — national person registry
+JA_API_KEY = env("JA_API_KEY", default="")
+
 # ── Bank integration ──────────────────────────────────────────────────────────
 BANK_FERNET_KEY = env("BANK_FERNET_KEY", default="")
 
