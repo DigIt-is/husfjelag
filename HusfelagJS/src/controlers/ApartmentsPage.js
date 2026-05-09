@@ -151,7 +151,7 @@ function ApartmentsPage() {
         [totalShare, totalShare2, totalShare3].every(v => Math.abs(v - 100) < 0.01);
 
     const KPIS = [
-        { label: 'HLUTFALL', val: totalShare,  hint: 'Almennur rekstur',  desc: 'Öllum lamennum rekstri er skipt eftir eignarhluta í eignaskiptasamning (þinglýst skjal).' },
+        { label: 'HLUTFALL', val: totalShare,  hint: 'Almennur rekstur',  desc: 'Öllum almennum rekstri er skipt eftir eignarhluta í eignaskiptasamning (þinglýst skjal).' },
         { label: 'HITI',     val: totalShare2, hint: 'Hitakostnaður',     desc: 'Kostnaði af sameiginlegur hitamælir er skipt eftir m² (eða mæli) og er að finna í eignaskiptasamningi.' },
         { label: 'LÓÐ',      val: totalShare3, hint: 'Lóðarframlag',      desc: 'Kostnaði við garðurumhirðu og bílaplan er skipt eftir lóðarmældum hluta sem er að finna í eignaskiptasamningi.' },
     ];
@@ -231,6 +231,10 @@ function ApartmentsPage() {
                                     <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.45, flex: 1 }}>
                                         Þrjú kostnaðarhlutföll skipta sameiginlegum kostnaði. Skráð á íbúðir við stofnun og breytast sjaldan.
                                     </Typography>
+                                    <Typography sx={{ fontSize: 12.5, color: 'text.secondary', lineHeight: 1.45, flex: 1 }}>
+                                        Einnig er jafnskiptur kostnaður sem deilist jafnt.
+                                    </Typography>
+
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1.25 }}>
                                         {ratiosOk
                                             ? <CheckCircleOutlineIcon sx={{ fontSize: 15, color: '#2e7d32' }} />

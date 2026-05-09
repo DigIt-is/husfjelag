@@ -206,7 +206,7 @@ export default function YfirlitPage() {
                         {/* Næstu skref */}
                         <Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1.5 }}>
-                                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Næstu skref</Typography>
+                                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Á næstunni</Typography>
                             </Box>
                             <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '6px' }}>
                                 {upcoming.map((u, i) => (
