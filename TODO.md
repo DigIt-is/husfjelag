@@ -11,6 +11,26 @@ Outstanding tasks to revisit. Remove items when completed.
 
 ---
 
+## Email & Notifications
+
+- [ ] **Integrate Resend.com email service**
+  Add transactional email capability to the backend — API key config, shared send helper. Foundation for all notification features below.
+
+- [ ] **Senda áminningar — payment reminders**
+  Send payment reminder emails to unpaid owners for a given collection month. Triggered from the overview/innheimta page via the "Senda áminningar →" CTA. Depends on Resend integration.
+
+- [ ] **Senda skilaboð — message owners from Owners page**
+  Compose and send a free-text email to selected or all owners of an association. Uses the Resend email integration. Depends on Resend integration.
+
+---
+
+## Overview (Yfirlit)
+
+- [ ] **Make "Næstu skref" dynamic**
+  Currently hardcoded dates (Apr 15 Ársreikningur, Apr 30 Aðalfundur, next month Innheimta). Derive upcoming events from actual data — collection due dates, association fiscal calendar, aðalfundur deadline from law (before end of April).
+
+---
+
 ## Backend
 
 ### Owner / User data
@@ -22,11 +42,10 @@ Outstanding tasks to revisit. Remove items when completed.
   - Affected code: `OwnerView.post` in `HusfelagPy/associations/views.py` — the `get_or_create` block that falls back to `defaults={"name": kennitala}`
 
 ### Apartment data
-- [ ] **Fetch apartment information from Fasteignaskrá**
-  When registering apartments, auto-populate share ratios, address, and property details from the official property registry.
-  - API info: https://hms.is/umsoknir-og-eydublod?tags=Vefþjónustuaðgangur
-  - **Note: this is a paid service** — evaluate cost before implementing
-  - Fields to potentially populate: `fnr`, `anr`, share ratios (`share`, `share_2`, `share_3`)
-  - Could be triggered by entering `fnr` in the add apartment form to auto-fill the rest
+- [ ] **Replace HMS scraping with a proper API for apartment data**
+  Currently we scrape Fasteignaskrá (HMS) after the user does a manual search and provides the URL back to us. This is fragile and a poor user experience. Evaluate available options:
+  - HMS API: https://hms.is/umsoknir-og-eydublod?tags=Vefþjónustuaðgangur — **paid service**, evaluate cost
+  - Goal: auto-populate `fnr`, `anr`, size and ideally share ratios (`share`, `share_2`, `share_3`) by entering a kennitala or address
+  - Affected code: `associations/scraper.py:scrape_hms_apartments()`
 
 ---

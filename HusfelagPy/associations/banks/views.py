@@ -43,17 +43,21 @@ class BankStatusView(APIView):
 
         configured = AssociationBankSettings.objects.filter(association=association).exists()
 
-        last_sync = (
+        last_log = (
             association.bank_audit_logs
             .filter(http_method="GET")
             .order_by("-timestamp")
-            .values_list("timestamp", flat=True)
+            .values("timestamp", "status_code")
             .first()
         )
 
+        last_sync_at = last_log["timestamp"].isoformat() if last_log else None
+        last_sync_ok = (last_log["status_code"] < 400) if last_log else None
+
         return Response({
             "configured": configured,
-            "last_sync_at": last_sync.isoformat() if last_sync else None,
+            "last_sync_at": last_sync_at,
+            "last_sync_ok": last_sync_ok,
         })
 
 

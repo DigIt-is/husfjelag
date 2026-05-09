@@ -469,6 +469,7 @@ function BankAccountsPanel({ user, assocParam, currentAssociation, bankAccounts,
     const navigate = useNavigate();
     const [accountingKeys, setAccountingKeys] = React.useState([]);
     const [showForm, setShowForm] = React.useState(false);
+    const [bankStatus, setBankStatus] = React.useState(null); // null = loading
 
     React.useEffect(() => {
         apiFetch(`${API_URL}/AccountingKey/list`)
@@ -476,6 +477,23 @@ function BankAccountsPanel({ user, assocParam, currentAssociation, bankAccounts,
             .then(data => setAccountingKeys(data.filter(k => k.type === 'ASSET')))
             .catch(() => {});
     }, [assocParam]);
+
+    React.useEffect(() => {
+        if (!currentAssociation?.id) return;
+        apiFetch(`${API_URL}/associations/${currentAssociation.id}/bank/status`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => setBankStatus(data))
+            .catch(() => setBankStatus(null));
+    }, [currentAssociation?.id]);
+
+    // Derive one of: 'not_configured' | 'ok' | 'error'
+    const connectionStatus = !bankStatus
+        ? null
+        : !bankStatus.configured
+            ? 'not_configured'
+            : bankStatus.last_sync_ok === false
+                ? 'error'
+                : 'ok';
 
     return (
         <Box sx={{ mt: '28px' }}>
@@ -518,6 +536,7 @@ function BankAccountsPanel({ user, assocParam, currentAssociation, bankAccounts,
                             accountingKeys={accountingKeys}
                             onSaved={onReload}
                             showDivider={i < bankAccounts.length - 1}
+                            connectionStatus={connectionStatus}
                         />
                     ))}
                 </Box>
@@ -526,8 +545,16 @@ function BankAccountsPanel({ user, assocParam, currentAssociation, bankAccounts,
     );
 }
 
-function BankAccountRow({ bankAccount, userId, assocParam, accountingKeys, onSaved, showDivider }) {
+const CONNECTION_INDICATOR = {
+    ok:             { dot: '#2e7d32', label: 'Tengt',        labelColor: '#888' },
+    error:          { dot: '#e65100', label: 'Villa',         labelColor: '#e65100' },
+    not_configured: { dot: '#bbb',    label: 'Ótengt',        labelColor: '#aaa' },
+    null:           { dot: '#ddd',    label: '...',           labelColor: '#bbb' },
+};
+
+function BankAccountRow({ bankAccount, userId, assocParam, accountingKeys, onSaved, showDivider, connectionStatus }) {
     const [editOpen, setEditOpen] = React.useState(false);
+    const ind = CONNECTION_INDICATOR[connectionStatus] ?? CONNECTION_INDICATOR[null];
     return (
         <>
             <Box sx={{
@@ -538,8 +565,8 @@ function BankAccountRow({ bankAccount, userId, assocParam, accountingKeys, onSav
                 <Box>
                     <Typography sx={{ fontSize: 13.5, fontWeight: 500 }}>{bankAccount.name}</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
-                        <Box component="span" sx={{ width: 7, height: 7, borderRadius: '50%', background: '#2e7d32', display: 'inline-block' }} />
-                        <Typography sx={{ fontSize: 11.5, color: '#888' }}>Tengt</Typography>
+                        <Box component="span" sx={{ width: 7, height: 7, borderRadius: '50%', background: ind.dot, display: 'inline-block' }} />
+                        <Typography sx={{ fontSize: 11.5, color: ind.labelColor }}>{ind.label}</Typography>
                     </Box>
                 </Box>
                 <Typography sx={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 12, color: '#555' }}>

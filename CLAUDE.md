@@ -83,6 +83,8 @@ HusfelagPy/
   - HMS import sets `anr`, `fnr`, `size` only — `share`, `share_2`, `share_3` must be entered manually; `share_eq` is auto-set after import
 - `ApartmentOwnership` — links User ↔ Apartment with share and is_payer flag
 - `RegistrationRequest` — submitted by a logged-in user with no association access; status PENDING/REVIEWED (max_length=16); fields: assoc_ssn, assoc_name, chair_ssn, chair_name, chair_email, chair_phone, submitted_by (FK User), created_at. One PENDING request per user+assoc_ssn enforced in the view.
+- `TermsAcceptance` — one-to-one with User; created once when user accepts terms; fields: kennitala, name (denormalised for audit durability), accepted_at, ip_address. Never updated.
+- `AuditLog` — append-only event log; fields: created_at, user (FK, SET_NULL), association (FK, SET_NULL, nullable), action (choice), value (str). Actions: `login`, `chair_changed`, `cfo_changed`, `association_new`, `budget_new`, `owner_new`.
 
 ### Authentication & Security
 
@@ -99,6 +101,8 @@ HusfelagPy/
 **401 auto-logout:** `apiFetch()` clears `localStorage` and redirects to `/` on any 401 response. This means a stale/invalid token will immediately log the user out.
 
 **DRF enforcement:** `users/authentication.py:JWTAuthentication` is set as the global `DEFAULT_AUTHENTICATION_CLASSES`. `DEFAULT_PERMISSION_CLASSES` is `IsAuthenticated`. Every endpoint requires a valid JWT unless explicitly listed below.
+
+**Terms acceptance:** `user.terms_accepted` (bool) is returned by `UserSerializer` via `SerializerMethodField` — true if a `TermsAcceptance` row exists for the user. `POST /auth/terms/accept` creates the record (idempotent) and returns the updated user object.
 
 **Open endpoints (no JWT required):**
 - `GET /auth/login` — starts Kenni OIDC flow
@@ -144,16 +148,20 @@ Note: components live in `src/controlers/` (intentional misspelling).
 
 **Key routes:**
 - `/` → `HomePage.js` — public landing page
+- `/skilmalar` → `SkilmalarPage.js` — public Terms of Service (Icelandic, 10 sections)
+- `/personuvernd` → `PersonuverndPage.js` — public Privacy Policy (GDPR/law 90/2018, Icelandic, 11 sections)
 - `/login` → `Login.js` — redirects to Kenni via backend
-- `/auth/callback` → `AuthCallback.js` — exchanges code for JWT, fetches profile, redirects
+- `/auth/callback` → `AuthCallback.js` — exchanges code for JWT, fetches profile; redirects to `/terms-accept` if `!terms_accepted`, else `/profile` if email/phone missing, else `/dashboard`
+- `/terms-accept` → `TermsAcceptPage.js` — protected; shown on first login; user must accept before accessing any other protected route
 - `/dashboard` → redirects to `/yfirlit`
 - `/profile` → `ProfilePage.js` — gated: redirected here automatically if `user.email` or `user.phone` is missing
 - `/skraning` → `RegistrationRequestPage.js` — for logged-in users with no association; submit registration request
 
-**`ProtectedRoute` logic:**
-1. If `user.email` or `user.phone` missing → redirect to `/profile` (exempts `/profile` and `/skraning`)
-2. If user has no associations and is not superadmin → show `NoAssociationView` (with "Skrá húsfélag" CTA)
-3. If user has no associations and is superadmin → redirect to `/superadmin`
+**`ProtectedRoute` logic (in order):**
+1. If `!user.terms_accepted` → redirect to `/terms-accept` (exempt: `/terms-accept` itself)
+2. If `user.email` or `user.phone` missing → redirect to `/profile` (exempt: `/profile`, `/skraning`)
+3. If user has no associations and is not superadmin → show `NoAssociationView` (with "Skrá húsfélag" CTA)
+4. If user has no associations and is superadmin → redirect to `/superadmin`
 
 ## Deployment
 
@@ -181,10 +189,18 @@ Note: components live in `src/controlers/` (intentional misspelling).
 - `parse_entity_for_association(ssn, entity)` → dict ready to create/update an Association (prefers Póstfang address, falls back to Lögheimilisfang)
 - Requires `SKATTUR_CLOUD_API_KEY` in `.env`
 
+**Terms acceptance endpoint:**
+- `POST /auth/terms/accept` — authenticated; creates `TermsAcceptance` record (idempotent — returns existing user if already accepted); records IP via `X-Forwarded-For` for audit trail
+
 **Registration request endpoints:**
 - `POST /RegistrationRequest` — any authenticated user; creates a PENDING request; rejects duplicates (same user + assoc_ssn already PENDING) with 409
 - `GET /admin/RegistrationRequest` — superadmin only; returns all PENDING requests
 - `PATCH /admin/RegistrationRequest/<id>` — superadmin only; only accepts `{"status": "REVIEWED"}` (one-way transition)
+
+**Bank status endpoint:**
+- `GET /associations/{id}/bank/status` — returns `{configured, last_sync_at, last_sync_ok}`. `configured` = `AssociationBankSettings` row exists. `last_sync_ok` = bool derived from most recent `BankApiAuditLog` status_code (null if no logs yet).
+
+**Audit log:** `AuditLog.objects.create(user=..., association=..., action=..., value=...)` — call directly at event sites. `association` is nullable (login events have no association context). `value` carries event-specific data: kennitala for role changes, association SSN for new associations, budget ID for new budgets, `"{apartment_id}:{kennitala}"` for new owners.
 
 **Management commands:**
 - `poetry run python3 manage.py delete_association <id>` — cascading delete of an association and all related data (prompts for name confirmation)
