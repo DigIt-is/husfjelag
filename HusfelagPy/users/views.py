@@ -1,6 +1,7 @@
 import logging
 
 import bugsnag
+import requests
 from django.conf import settings
 from django.http import HttpResponseRedirect
 from rest_framework import status
@@ -231,3 +232,55 @@ class OIDCTokenExchangeView(APIView):
         # One-time use — delete immediately
         cache.delete(cache_key)
         return Response({"token": jwt_token})
+
+
+class KennitalaLookupView(APIView):
+    """
+    GET /User/lookup?kennitala=XXXXXXXXXX
+    Resolves a kennitala to a name.
+    1. Checks our own User table first (free, instant).
+    2. Falls back to Já/Gagnatorg national registry API.
+    Returns: {kennitala, name, source: "db"|"registry"}
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        kennitala = request.query_params.get("kennitala", "").replace("-", "").strip()
+        if len(kennitala) != 10 or not kennitala.isdigit():
+            return Response({"detail": "kennitala must be 10 digits."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Check our own DB first
+        try:
+            user = User.objects.get(kennitala=kennitala)
+            # Skip stub users (name was set to kennitala as placeholder)
+            if user.name and user.name != kennitala:
+                return Response({"kennitala": kennitala, "name": user.name, "source": "db"})
+        except User.DoesNotExist:
+            pass
+
+        # 2. Look up in Já / Gagnatorg national registry
+        api_key = settings.JA_API_KEY
+        if not api_key:
+            return Response({"detail": "Þjóðskrárfletting er ekki stillt."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        try:
+            resp = requests.get(
+                f"https://api.ja.is/skra/v1/people/{kennitala}",
+                headers={"Authorization": api_key},
+                timeout=5,
+            )
+        except requests.RequestException:
+            return Response({"detail": "Þjóðskrá er ekki aðgengileg."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        if resp.status_code == 404:
+            return Response({"detail": "Kennitala fannst ekki í Þjóðskrá."}, status=status.HTTP_404_NOT_FOUND)
+        if not resp.ok:
+            logger.error("Já API returned %s for kennitala lookup", resp.status_code)
+            return Response({"detail": "Villa við Þjóðskrárflettingu."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        data = resp.json()
+        name = data.get("name", "").strip()
+        if not name:
+            return Response({"detail": "Kennitala fannst ekki í Þjóðskrá."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"kennitala": kennitala, "name": name, "source": "registry"})

@@ -19,6 +19,7 @@ import { apiFetch } from '../api';
 import SideBar from './Sidebar';
 import { fmtPct } from '../format';
 import { primaryButtonSx, secondaryButtonSx, ghostButtonSx, destructiveButtonSx } from '../ui/buttons';
+import useKennitalaLookup from '../ui/useKennitalaLookup';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
 
@@ -877,6 +878,32 @@ function EditApartmentDialog({ open, onClose, apt, apartments, isDisabled, onSav
     );
 }
 
+/* ── Kennitala name feedback row ─────────────────────────────── */
+function KennitalaNameFeedback({ status, name }) {
+    if (status === 'idle') return null;
+    if (status === 'loading') return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, mb: 0.5 }}>
+            <CircularProgress size={13} sx={{ color: '#1D366F' }} />
+            <Typography sx={{ fontSize: 12.5, color: '#666' }}>Fletti upp í Þjóðskrá…</Typography>
+        </Box>
+    );
+    if (status === 'found') return (
+        <Box sx={{ mt: 1, mb: 0.5, px: 1.5, py: 0.875, background: '#f0f7f0', borderRadius: 1.5, border: '1px solid #c8e6c9', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#2e7d32' }}>{name}</Typography>
+        </Box>
+    );
+    if (status === 'not_found') return (
+        <Box sx={{ mt: 1, mb: 0.5, px: 1.5, py: 0.875, background: '#fff8e1', borderRadius: 1.5, border: '1px solid #ffe082' }}>
+            <Typography sx={{ fontSize: 12.5, color: '#b26a00' }}>Kennitala fannst ekki í Þjóðskrá.</Typography>
+        </Box>
+    );
+    return (
+        <Box sx={{ mt: 1, mb: 0.5, px: 1.5, py: 0.875, background: '#fff3f3', borderRadius: 1.5, border: '1px solid #ffcdd2' }}>
+            <Typography sx={{ fontSize: 12.5, color: '#c62828' }}>Villa við Þjóðskrárflettingu.</Typography>
+        </Box>
+    );
+}
+
 /* ── OwnerDialog (three-step add) ───────────────────────────────── */
 function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
     const { assocParam } = React.useContext(UserContext);
@@ -885,6 +912,7 @@ function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
     const [isPayer, setIsPayer] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const { name: lookedUpName, lookupStatus } = useKennitalaLookup(kennitala);
 
     React.useEffect(() => {
         if (open) { setKennitala(''); setShare(''); setIsPayer(false); setError(''); }
@@ -950,6 +978,7 @@ function OwnerDialog({ open, onClose, apt, userId, onChanged }) {
                     size="small" fullWidth
                     helperText="10 tölustafir — bandstrik er valfrjálst"
                 />
+                <KennitalaNameFeedback status={lookupStatus} name={lookedUpName} />
 
                 <DlgSection hint="Forvalið út frá síðu sem þú varst á">② Tenging við íbúð</DlgSection>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 1.5 }}>
