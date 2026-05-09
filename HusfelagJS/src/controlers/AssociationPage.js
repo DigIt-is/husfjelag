@@ -31,12 +31,14 @@ import { primaryButtonSx, secondaryButtonSx, ghostButtonSx, destructiveButtonSx 
 import { LabelChip } from '../ui/chips';
 import { HEAD_SX, HEAD_CELL_SX } from './tableUtils';
 import Eyebrow from '../ui/Eyebrow';
+import { useHelp } from '../ui/HelpContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
 
 function AssociationPage() {
     const navigate = useNavigate();
     const { user, assocParam, currentAssociation } = React.useContext(UserContext);
+    const { openHelp } = useHelp();
 
     const [association, setAssociation] = useState(undefined);
     const [owners, setOwners] = useState([]);
@@ -149,6 +151,13 @@ function AssociationPage() {
                             {association.address ? ` · ${association.address}` : ''}
                             {association.postal_code || association.city ? `, ${[association.postal_code, association.city].filter(Boolean).join(' ')}` : ''}
                         </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Tooltip title="Hjálp">
+                            <IconButton size="small" onClick={() => openHelp('husfelag')}>
+                                <HelpOutlineIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                            </IconButton>
+                        </Tooltip>
                     </Box>
                 </Box>
 

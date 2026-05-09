@@ -2,11 +2,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Box, Typography, CircularProgress, Button,
+    Box, Typography, CircularProgress, Button, IconButton, Tooltip,
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { UserContext } from './UserContext';
 import { apiFetch } from '../api';
 import SideBar from './Sidebar';
@@ -14,6 +15,7 @@ import { fmtAmount } from '../format';
 import { secondaryButtonSx } from '../ui/buttons';
 import Eyebrow from '../ui/Eyebrow';
 import AnnualStatementDialog from '../ui/AnnualStatementDialog';
+import { useHelp } from '../ui/HelpContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
 
@@ -32,6 +34,7 @@ const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Maí', 'Jún', 'Júl', '
 export default function YfirlitPage() {
     const navigate = useNavigate();
     const { user, assocParam, currentAssociation } = React.useContext(UserContext);
+    const { openHelp } = useHelp();
 
     const today = new Date();
     const year = today.getFullYear();
@@ -136,6 +139,11 @@ export default function YfirlitPage() {
                         >
                             Sækja ársskýrslu
                         </Button>
+                        <Tooltip title="Hjálp">
+                            <IconButton size="small" onClick={() => openHelp('yfirlit')}>
+                                <HelpOutlineIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                            </IconButton>
+                        </Tooltip>
                     </Box>
                 </Box>
 

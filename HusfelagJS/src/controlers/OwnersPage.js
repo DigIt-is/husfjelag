@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Box, Typography, CircularProgress,
-    Button, TextField, IconButton,
+    Button, TextField, IconButton, Tooltip,
     Dialog, DialogTitle, DialogContent, DialogActions,
     Alert, DialogContentText,
     MenuItem, Select, FormControl, InputLabel,
@@ -12,12 +12,14 @@ import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import SearchIcon from '@mui/icons-material/Search';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { UserContext } from './UserContext';
 import { apiFetch } from '../api';
 import SideBar from './Sidebar';
 import { fmtPct, fmtKennitala, fmtPhone } from '../format';
 import { primaryButtonSx, ghostButtonSx, destructiveButtonSx } from '../ui/buttons';
 import useKennitalaLookup from '../ui/useKennitalaLookup';
+import { useHelp } from '../ui/HelpContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8010';
 
@@ -214,6 +216,7 @@ function AptGroup({ anr, apt, owners, allOwnerships, onAddOwner, onSaved }) {
 function OwnersPage() {
     const navigate = useNavigate();
     const { user, assocParam } = React.useContext(UserContext);
+    const { openHelp } = useHelp();
     const [ownerships, setOwnerships] = useState(undefined);
     const [apartments, setApartments] = useState([]);
     const [error, setError] = useState('');
@@ -312,7 +315,7 @@ function OwnersPage() {
                             </Typography>
                         </Box>
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                         <Button
                             variant="outlined"
                             sx={{ ...ghostButtonSx, borderColor: BORDER, color: TEXT_SECONDARY }}
@@ -327,6 +330,11 @@ function OwnersPage() {
                         >
                             Bæta við eiganda
                         </Button>
+                        <Tooltip title="Hjálp">
+                            <IconButton size="small" onClick={() => openHelp('eigendur')}>
+                                <HelpOutlineIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                            </IconButton>
+                        </Tooltip>
                     </Box>
                 </Box>
 
