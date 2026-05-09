@@ -1,10 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Alert, CircularProgress,
-  Card, CardContent, Chip, TextField,
+  Card, CardContent, Chip, TextField, Link,
 } from '@mui/material';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import SyncIcon from '@mui/icons-material/Sync';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { UserContext } from './UserContext';
 import { apiFetch } from '../api';
 import SideBar from './Sidebar';
@@ -136,6 +137,26 @@ export default function BankSettingsPage() {
                   Samskipti við Landsbankann eru stillt af kerfisstjóra.
                 </Typography>
               )}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1.5 }}>
+                <Link
+                  href="https://www.landsbankinn.is/fyrirtaeki/radgjof-og-thjonusta/husfelog"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 13 }}
+                >
+                  Húsfélagsþjónusta Landsbankans
+                  <OpenInNewIcon sx={{ fontSize: 13 }} />
+                </Link>
+                <Link
+                  href="https://www.landsbankinn.is/fyrirtaeki/umsoknir-og-eydublod#husfelagathjonusta"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 13 }}
+                >
+                  Umsóknir og eyðublöð — Húsfélagsþjónusta
+                  <OpenInNewIcon sx={{ fontSize: 13 }} />
+                </Link>
+              </Box>
               {user?.is_superadmin && (
                 <Box sx={{ mt: 2 }}>
                   <Button
