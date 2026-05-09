@@ -142,7 +142,7 @@ export default function BankSettingsPage() {
                   href="https://www.landsbankinn.is/fyrirtaeki/radgjof-og-thjonusta/husfelog"
                   target="_blank"
                   rel="noopener noreferrer"
-                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 13 }}
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 13, color: '#08C076' }}
                 >
                   Húsfélagsþjónusta Landsbankans
                   <OpenInNewIcon sx={{ fontSize: 13 }} />
@@ -151,7 +151,7 @@ export default function BankSettingsPage() {
                   href="https://www.landsbankinn.is/fyrirtaeki/umsoknir-og-eydublod#husfelagathjonusta"
                   target="_blank"
                   rel="noopener noreferrer"
-                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 13 }}
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 13, color: '#08C076' }}
                 >
                   Umsóknir og eyðublöð — Húsfélagsþjónusta
                   <OpenInNewIcon sx={{ fontSize: 13 }} />
