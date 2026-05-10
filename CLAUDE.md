@@ -66,7 +66,14 @@ HusfelagPy/
 └── associations/       # Association, Apartment, Transaction, Budget, Collection models + endpoints
 ```
 
-**Config:** All secrets via `.env` file (see `.env.example`). `DJANGO_ENV=development|production` controls which settings file loads.
+**Config:** Secrets come from **Doppler** (injected as OS env vars via `doppler run --`). Non-secret local config lives in `.env` (fallback only — Doppler vars take precedence because `read_env(overwrite=False)`). `DJANGO_ENV=development|production` controls which settings file loads.
+
+**Doppler setup (one-time per machine):**
+```bash
+doppler login          # browser OAuth
+cd HusfelagPy && doppler setup   # select husfjelag project + config (dev/stg/prd)
+```
+All backend commands in local dev must be wrapped: `doppler run -- poetry run python3 manage.py ...`
 
 **Data flow:** DRF Views → Django ORM → PostgreSQL
 
@@ -85,6 +92,9 @@ HusfelagPy/
 - `RegistrationRequest` — submitted by a logged-in user with no association access; status PENDING/REVIEWED (max_length=16); fields: assoc_ssn, assoc_name, chair_ssn, chair_name, chair_email, chair_phone, submitted_by (FK User), created_at. One PENDING request per user+assoc_ssn enforced in the view.
 - `TermsAcceptance` — one-to-one with User; created once when user accepts terms; fields: kennitala, name (denormalised for audit durability), accepted_at, ip_address. Never updated.
 - `AuditLog` — append-only event log; fields: created_at, user (FK, SET_NULL), association (FK, SET_NULL, nullable), action (choice), value (str). Actions: `login`, `chair_changed`, `cfo_changed`, `association_new`, `budget_new`, `owner_new`.
+- `BankProvider(TextChoices)` — `LANDSBANKINN`, `ISLANDSBANKI`, `ARION`
+- `AssociationBankSettings` — one-to-one with Association; fields: `bank` (BankProvider choice), `api_key` (per-association Landsbankinn client ID), `template_id`, `last_sync_at` (updated after each successful transaction sync), `created_at`, `updated_at`
+- `BankTokenCache` — cached OAuth tokens per `(bank, client_id)` unique pair; tokens stored Fernet-encrypted; `expires_at` used to avoid refreshing valid tokens (60 s early-expiry buffer)
 
 ### Authentication & Security
 
@@ -109,6 +119,7 @@ HusfelagPy/
 - `GET /auth/callback` — Kenni redirect target
 - `POST /auth/token` — exchange one-time code for JWT
 - `POST /Login` — returns 410 Gone (legacy, disabled)
+- `GET /health/cert` — mTLS certificate health; returns `{valid, expires_at, days_remaining, warning}`
 
 **All other endpoints are authenticated.** Authorization is enforced in layers:
 
@@ -199,6 +210,19 @@ Note: components live in `src/controlers/` (intentional misspelling).
 
 **Bank status endpoint:**
 - `GET /associations/{id}/bank/status` — returns `{configured, last_sync_at, last_sync_ok}`. `configured` = `AssociationBankSettings` row exists. `last_sync_ok` = bool derived from most recent `BankApiAuditLog` status_code (null if no logs yet).
+
+**Landsbankinn mTLS cert (`associations/banks/cert.py`):**
+- `BUNADARSKILRIKI` — base64-encoded `.p12` PFX file, stored in Doppler (never on disk)
+- `BUNADARSKILRIKI_PWD` — PFX password, stored in Doppler
+- `cert.load() -> (bytes, str)` — decodes base64, validates PFX via `load_pkcs12`, caches in module-level `_CACHE` (parsed once per process)
+- `cert.get_expiry() -> datetime` — reads `not_valid_after_utc` from the PFX certificate
+- Startup: `associations/apps.py:ready()` logs cert status (or WARNING if not set); raises `RuntimeError` if BUNADARSKILRIKI is set but fails to load
+- `requests_pkcs12.post(..., pkcs12_data=bytes, pkcs12_password=str)` — cert passed in-memory, nothing written to disk
+
+**Landsbankinn token caching (`associations/banks/landsbankinn.py`):**
+- `get_access_token(api_key: str) -> str` — api_key is required; tokens cached per `(bank, client_id)` in `BankTokenCache`; refreshed 60 s before expiry
+- All `_get`, `_post`, `sync_account_transactions`, `get_claim_status` require `api_key` as explicit arg
+- Each association supplies its own `api_key` via `AssociationBankSettings.api_key` — no global fallback key
 
 **Audit log:** `AuditLog.objects.create(user=..., association=..., action=..., value=...)` — call directly at event sites. `association` is nullable (login events have no association context). `value` carries event-specific data: kennitala for role changes, association SSN for new associations, budget ID for new budgets, `"{apartment_id}:{kennitala}"` for new owners.
 

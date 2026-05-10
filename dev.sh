@@ -1,13 +1,21 @@
 #!/bin/bash
-# Start backend and frontend for local development
+# Start backend and frontend for local development.
+#
+# Prerequisites:
+#   brew install dopplerhq/cli/doppler
+#   doppler login
+#   cd HusfelagPy && doppler setup   # select project + config (run once per machine)
+#
+# Doppler injects BUNADARSKILRIKI, BUNADARSKILRIKI_PWD, and all other secrets
+# into the backend process. Non-secret local config still comes from HusfelagPy/.env.
 
 trap 'kill 0' EXIT
 
 echo "Running migrations..."
-(cd HusfelagPy && poetry run python manage.py migrate)
+(cd HusfelagPy && doppler run -- poetry run python3 manage.py migrate)
 
 echo "Starting backend on http://localhost:8010 ..."
-(cd HusfelagPy && poetry run python manage.py runserver 8010) &
+(cd HusfelagPy && doppler run -- poetry run python3 manage.py runserver 8010) &
 
 echo "Waiting for backend to be ready..."
 until curl -s http://localhost:8010 > /dev/null 2>&1; do

@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils.timezone import now as tz_now
 from associations.models import (
     Association, AssociationAccess, AssociationRole,
-    AssociationBankSettings, BankClaim, BankClaimStatus, Collection,
+    AssociationBankSettings, BankProvider, BankClaim, BankClaimStatus, Collection,
 )
 
 
@@ -156,7 +156,7 @@ class AssociationBankSettingsView(APIView):
             return err
 
         try:
-            bank_settings = AssociationBankSettings.objects.get(association=association)
+            bs = AssociationBankSettings.objects.get(association=association)
         except AssociationBankSettings.DoesNotExist:
             return Response(
                 {"detail": "Bankastillingar ekki stilltar."},
@@ -164,8 +164,11 @@ class AssociationBankSettingsView(APIView):
             )
 
         return Response({
-            "template_id": bank_settings.template_id,
-            "updated_at": bank_settings.updated_at.isoformat(),
+            "bank": bs.bank,
+            "api_key_set": bool(bs.api_key),
+            "template_id": bs.template_id,
+            "last_sync_at": bs.last_sync_at.isoformat() if bs.last_sync_at else None,
+            "updated_at": bs.updated_at.isoformat(),
         })
 
     def post(self, request, association_id):
@@ -178,20 +181,29 @@ class AssociationBankSettingsView(APIView):
         if err:
             return err
 
-        template_id = request.data.get("template_id", "").strip()
-        if not template_id:
+        bank = request.data.get("bank", BankProvider.LANDSBANKINN).strip()
+        if bank not in BankProvider.values:
             return Response(
-                {"detail": "template_id er nauðsynlegt."},
+                {"detail": f"Ógildur banki. Veldu: {', '.join(BankProvider.values)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        bank_settings, _ = AssociationBankSettings.objects.update_or_create(
+        defaults = {"bank": bank}
+        if "template_id" in request.data:
+            defaults["template_id"] = request.data["template_id"].strip()
+        if "api_key" in request.data:
+            defaults["api_key"] = request.data["api_key"].strip()
+
+        bs, _ = AssociationBankSettings.objects.update_or_create(
             association=association,
-            defaults={"template_id": template_id},
+            defaults=defaults,
         )
         return Response({
-            "template_id": bank_settings.template_id,
-            "updated_at": bank_settings.updated_at.isoformat(),
+            "bank": bs.bank,
+            "api_key_set": bool(bs.api_key),
+            "template_id": bs.template_id,
+            "last_sync_at": bs.last_sync_at.isoformat() if bs.last_sync_at else None,
+            "updated_at": bs.updated_at.isoformat(),
         })
 
 
@@ -341,3 +353,37 @@ class SendAllClaimsView(APIView):
         if errors:
             response_data["errors"] = errors
         return Response(response_data)
+
+
+class CertHealthView(APIView):
+    """
+    GET /health/cert — no authentication required.
+
+    Returns cert validity and days remaining without exposing subject/issuer.
+    """
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request):
+        from datetime import datetime, timezone
+        from associations.banks import cert
+
+        try:
+            expiry = cert.get_expiry()
+            now_utc = datetime.now(tz=timezone.utc)
+            days_remaining = (expiry - now_utc).days
+            valid = days_remaining > 0
+            return Response({
+                "valid": valid,
+                "expires_at": expiry.date().isoformat(),
+                "days_remaining": days_remaining,
+                "warning": days_remaining < 30,
+            })
+        except Exception as exc:
+            return Response({
+                "valid": False,
+                "expires_at": None,
+                "days_remaining": None,
+                "warning": True,
+                "error": str(exc),
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)

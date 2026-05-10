@@ -21,6 +21,7 @@ husfjelag/
 | **Frontend** | React 17, Material-UI v5, React Router v6 |
 | **API Docs** | drf-spectacular (Swagger / ReDoc) |
 | **Package manager (BE)** | Poetry |
+| **Secret management** | Doppler |
 
 ## Quick Start
 
@@ -29,6 +30,8 @@ husfjelag/
 ```
 
 Starts the backend on `http://localhost:8010` and the frontend on `http://localhost:3010`.
+
+> **First time?** Set up Doppler before running `dev.sh` — see [Secret management with Doppler](#secret-management-with-doppler) below.
 
 ## Getting Started
 
@@ -39,13 +42,56 @@ Starts the backend on `http://localhost:8010` and the frontend on `http://localh
 - Node.js + npm
 - PostgreSQL 15
 - Redis
+- Doppler CLI
 
 On macOS:
 ```bash
-brew install postgresql@15 redis
+brew install postgresql@15 redis dopplerhq/cli/doppler
 brew services start postgresql@15
 brew services start redis
 ```
+
+### Secret management with Doppler
+
+All secrets (certificate, API keys, database credentials) are managed in Doppler. Nothing secret lives in `.env`.
+
+**One-time setup per machine:**
+```bash
+doppler login          # browser OAuth — token stored in ~/.doppler
+cd HusfelagPy
+doppler setup          # select the husfjelag project and your environment (dev/stg/prd)
+```
+
+After this, `doppler run -- <command>` injects all secrets as environment variables. The `.env` file in `HusfelagPy/` holds local-only non-secret config (debug flags, localhost URLs) and is a fallback for any var not provided by Doppler.
+
+**Encoding the Landsbankinn mTLS certificate for Doppler:**
+```bash
+base64 -i company.p12 | tr -d '\n'   # copy output → BUNADARSKILRIKI in Doppler
+```
+
+**Certificate health check** (no auth required):
+```
+GET /health/cert
+→ { valid, expires_at, days_remaining, warning }
+```
+
+### Production — Digital Ocean App Platform
+
+Doppler has a native DO App Platform sync integration. Set it up once in the Doppler dashboard:
+
+1. In Doppler: **Integrations → Digital Ocean App Platform → New Sync**
+2. Select the `prd` config and your DO app
+3. Doppler will push all secrets to DO as encrypted environment variables automatically on every change
+
+After the sync is active, remove the manually set `BUNADARSKILRIKI` and `BUNADARSKILRIKI_PWD` from DO's environment variable UI — Doppler is the single source of truth.
+
+**Config mapping:**
+
+| Doppler config | Used for |
+|---|---|
+| `dev` | Local development (`doppler run -- ./dev.sh`) |
+| `stg` | Staging app on DO |
+| `prd` | Production app on DO |
 
 ### Backend (HusfelagPy)
 
@@ -57,17 +103,18 @@ poetry install --no-root
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your database credentials
+# Edit .env — set DATABASE_URL, REDIS_URL, KENNI_*, etc.
+# Secrets (BUNADARSKILRIKI etc.) come from Doppler, not .env
 
 # Set up the database
 createuser --createdb husfelag
 createdb -U husfelag husfelag
 
-# Run migrations
-poetry run python manage.py migrate
+# Run migrations (via Doppler so cert is available at startup)
+doppler run -- poetry run python3 manage.py migrate
 
 # Start the API server
-poetry run python manage.py runserver 8010
+doppler run -- poetry run python3 manage.py runserver 8010
 ```
 
 API available at `http://localhost:8010`
@@ -76,7 +123,7 @@ ReDoc at `http://localhost:8010/redoc/`
 
 **Optional — start Celery worker** (for background tasks):
 ```bash
-poetry run celery -A config worker --loglevel=info
+doppler run -- poetry run celery -A config worker --loglevel=info
 ```
 
 ### Frontend (HusfelagJS)
@@ -104,15 +151,13 @@ REACT_APP_API_URL=http://localhost:8010
 | | Target | Notes |
 |---|---|---|
 | **Frontend** | Vercel | Set `REACT_APP_API_URL` to production API URL |
-| **Backend** | Digital Ocean or GCP | Set `DJANGO_ENV=production` + all env vars from `.env.example` |
-| **Database** | Managed PostgreSQL | Digital Ocean Managed DB or Cloud SQL |
+| **Backend** | Digital Ocean App Platform | `DJANGO_ENV=production` + secrets via Doppler sync |
+| **Database** | Managed PostgreSQL | Digital Ocean Managed DB |
+| **Secrets** | Doppler `prd` config | Synced to DO automatically |
 
-**Production server command:**
+**Production server command (DO run command):**
 ```bash
-poetry run gunicorn config.asgi:application \
-  --worker-class uvicorn.workers.UvicornWorker \
-  --bind 0.0.0.0:8000 \
-  --workers 4
+python manage.py createcachetable && python manage.py migrate && gunicorn config.asgi:application --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080 --workers 4 --timeout 120
 ```
 
 ## Domain Notes
@@ -121,7 +166,7 @@ This project is built for the Icelandic market.
 
 - **Kennitala** — 10-digit national ID number, used as the primary identifier for both users and building associations
 - **Auðkennisappið** — Icelandic government authentication app (login method 1, planned)
-- **Rafræn skilríki** — Icelandic digital credentials via phone (login method 2, planned)
+- **Búnaðarskilríki** — mTLS client certificate used by Digit ehf. to authenticate against Landsbankinn
 
 ## Development with Claude
 

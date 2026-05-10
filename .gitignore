@@ -1,5 +1,15 @@
 # Python / Django
 HusfelagPy/.env
+
+# Certificate files — never commit
+*.pfx
+*.p12
+*.key
+*.cer
+*.pem
+
+# Doppler local project config (auth token lives in ~/.doppler, not here)
+.doppler.yaml
 HusfelagPy/__pycache__/
 HusfelagPy/**/__pycache__/
 HusfelagPy/**/*.pyc
