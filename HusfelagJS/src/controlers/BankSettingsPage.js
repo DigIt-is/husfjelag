@@ -154,11 +154,17 @@ export default function BankSettingsPage() {
 
   async function handleManualSync() {
     setSyncing(true);
+    setMessage(null);
     try {
-      await apiFetch(`${API_URL}/admin/associations/${assocId}/bank/sync`, { method: 'POST' });
-      setMessage({ type: 'success', text: 'Samstilling hafin í bakgrunni.' });
+      const resp = await apiFetch(`${API_URL}/admin/associations/${assocId}/bank/sync`, { method: 'POST' });
+      if (resp.ok) {
+        setMessage({ type: 'success', text: 'Samstilling hafin í bakgrunni. Niðurstöður birtast eftir smá stund.' });
+      } else {
+        const data = await resp.json().catch(() => ({}));
+        setMessage({ type: 'error', text: data.detail || `Villa við samstillingu (${resp.status}).` });
+      }
     } catch {
-      setMessage({ type: 'error', text: 'Villa við samstillingu.' });
+      setMessage({ type: 'error', text: 'Tenging við þjón mistókst. Athugaðu nettengingu.' });
     } finally {
       setSyncing(false);
     }
@@ -375,9 +381,9 @@ export default function BankSettingsPage() {
                     sx={secondaryButtonSx}
                     onClick={handleManualSync}
                     disabled={syncing}
-                    startIcon={syncing ? <CircularProgress size={14} /> : <SyncIcon />}
+                    startIcon={syncing ? <CircularProgress size={14} color="inherit" /> : <SyncIcon />}
                   >
-                    Samstilla núna
+                    {syncing ? 'Samstilli...' : 'Samstilla núna'}
                   </Button>
                 </Box>
               )}
