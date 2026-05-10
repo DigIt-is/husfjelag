@@ -918,7 +918,7 @@ const BORDER = '#e8e8e8';
 const SETUP_STEP_DEFS = [
     { icon: <BusinessIcon sx={{ fontSize: 18 }} />,       title: 'Stofna húsfélag',   sub: 'Byrjaðu á að setja inn kennitölu húsfélagsins og við sækjum heiti, heimilsfang ofl.',                               time: '~2 mín.', navPath: null },
     { icon: <HomeIcon sx={{ fontSize: 18 }} />,           title: 'Skrá íbúðir',       sub: 'Íbúðir & eignarhlutföll (sem má finna í eignaskiptasamningi) stýra hvernig kostnaði er skipt á íbúðir',             time: '~15 mín.', navPath: '/ibudir', navState: { openAdd: true } },
-    { icon: <PersonAddIcon sx={{ fontSize: 18 }} />,      title: 'Skrá eigendur',     sub: 'Eigendur íbúða hafa aðgang að yfirliti húsfélagsins og einn eigandi er greiðandi fyrir hverna íbúð',                time: '~10 mín.', navPath: '/eigendur' },
+    { icon: <PersonAddIcon sx={{ fontSize: 18 }} />,      title: 'Skrá eigendur',     sub: 'Eigendur íbúða hafa aðgang að yfirliti húsfélagsins og einn eigandi er greiðandi fyrir hverja íbúð',                time: '~10 mín.', navPath: '/eigendur' },
     { icon: <GroupIcon sx={{ fontSize: 18 }} />,          title: 'Bæta við stjórn',   sub: 'Formaður og gjaldkeri fá aðgang til að stýra áætlanagerð og innheimtu, ásamt öllum öðrum aðgerðum í kerfinu',       time: '~3 mín.', navPath: null },
     { icon: <EventRepeatIcon sx={{ fontSize: 18 }} />,    title: 'Setja upp áætlun',  sub: 'Húsfélög byggja sinn rekstur í kringum kostnaðráætlun fyrir árið og svo þarf að hefja innheimtu á húsgjöldum',      time: '~10 mín.', navPath: '/aaetlun' },
     { icon: <AccountBalanceIcon sx={{ fontSize: 18 }} />, title: 'Tengja banka',      sub: 'Tenging við banka sér um að sækja stöðuna og færslur af bankareikningum, ásamt því að sjá um innheimtukröfur',      time: '~10 mín.', navPath: '/bank-settings' },
@@ -935,6 +935,9 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
     const nextContext = firstIncomplete === 2 && association.apartment_count > 0
         ? ` (${association.apartment_count} íbúðir)`
         : '';
+    const remainingMins = SETUP_STEP_DEFS
+        .filter((_, i) => !setupSteps[i])
+        .reduce((sum, def) => sum + (parseInt(def.time) || 0), 0);
 
     const chair = owners.find(o => o.role === 'CHAIR' || o.role === 'Formaður');
     const cfo   = owners.find(o => o.role === 'CFO'   || o.role === 'Gjaldkeri');
@@ -971,7 +974,7 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
                                     </Box>
                                 </Typography>
                                 <Typography sx={{ fontSize: 13.5, color: '#555' }}>
-                                    Þú þarft að klára þessi 6 skref áður en kerfið getur sent út fyrsta gjaldseðilinn. Heildartími: ~30 mín."
+                                    Eftir uppsetningu sér kerfið um innheimtu, afstemmingu og ársskýrslu.
                                 </Typography>
                             </Box>
                             <Box sx={{ textAlign: 'right', flexShrink: 0, ml: 4 }}>
@@ -981,6 +984,12 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
                                 <Typography sx={{ fontSize: 11, color: '#888', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                                     LOKIÐ
                                 </Typography>
+                                {remainingMins > 0 && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4, mt: 0.5 }}>
+                                        <AccessTimeIcon sx={{ fontSize: 11, color: '#bbb' }} />
+                                        <Typography sx={{ fontSize: 11, color: '#aaa' }}>~{remainingMins} mín. eftir</Typography>
+                                    </Box>
+                                )}
                             </Box>
                         </Box>
 
