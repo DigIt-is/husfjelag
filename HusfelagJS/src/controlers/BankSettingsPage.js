@@ -35,9 +35,10 @@ export default function BankSettingsPage() {
   const [message, setMessage]           = useState(null);
 
   // Form inputs
-  const [apiKeyInput, setApiKeyInput]         = useState('');
-  const [templateIdInput, setTemplateIdInput] = useState('');
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [apiKeyInput, setApiKeyInput]             = useState('');
+  const [templateIdInput, setTemplateIdInput]     = useState('');
+  const [showApiKeyInput, setShowApiKeyInput]     = useState(false);
+  const [showTemplateInput, setShowTemplateInput] = useState(false);
 
   // Bank-change confirmation dialog
   const [changeBankOpen, setChangeBankOpen] = useState(false);
@@ -105,6 +106,7 @@ export default function BankSettingsPage() {
         setTemplateIdInput('');
         setApiKeyInput('');
         setShowApiKeyInput(false);
+        setShowTemplateInput(false);
         return true;
       }
       const err = await resp.json();
@@ -146,7 +148,8 @@ export default function BankSettingsPage() {
   }
 
   async function handleSaveTemplate() {
-    await postSettings({ template_id: templateIdInput.trim() });
+    const ok = await postSettings({ template_id: templateIdInput.trim() });
+    if (ok) setShowTemplateInput(false);
   }
 
   async function handleManualSync() {
@@ -282,7 +285,19 @@ export default function BankSettingsPage() {
                   {/* 2b: Innheimtusniðmát — only once API key is set */}
                   {bankSettings.api_key_set && (
                     <SectionCard title="Innheimtusniðmát" sx={{ mt: 2 }}>
-                      {canManage ? (
+                      {bankSettings.template_id && !showTemplateInput ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1.5 }}>
+                          <CheckCircleOutlineIcon sx={{ color: '#2e7d32', fontSize: 20 }} />
+                          <Typography sx={{ fontWeight: 500, flex: 1 }}>
+                            Innheimtusniðmát stillt á: <Box component="span" sx={{ fontFamily: 'monospace' }}>{bankSettings.template_id}</Box>
+                          </Typography>
+                          {canManage && (
+                            <Button sx={ghostButtonSx} size="small" onClick={() => setShowTemplateInput(true)}>
+                              Uppfæra
+                            </Button>
+                          )}
+                        </Box>
+                      ) : canManage ? (
                         <>
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, mb: 2 }}>
                             Auðkenni innheimtusniðmáts frá Landsbankanum þarf að vera stillt til að geta sent inn kröfur.
@@ -303,16 +318,18 @@ export default function BankSettingsPage() {
                             >
                               {saving ? <CircularProgress size={18} color="inherit" /> : 'Vista'}
                             </Button>
+                            {bankSettings.template_id && (
+                              <Button sx={ghostButtonSx} onClick={() => { setShowTemplateInput(false); setTemplateIdInput(bankSettings.template_id); }}>
+                                Hætta við
+                              </Button>
+                            )}
                           </Box>
-                          {bankSettings.updated_at && (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                              Síðast uppfært: {new Date(bankSettings.updated_at).toLocaleString('is-IS')}
-                            </Typography>
-                          )}
                         </>
                       ) : (
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-                          {bankSettings.template_id ? 'Innheimtusniðmát er stillt.' : 'Innheimtusniðmát hefur ekki verið stillt.'}
+                          {bankSettings.template_id
+                            ? `Innheimtusniðmát stillt á: ${bankSettings.template_id}`
+                            : 'Innheimtusniðmát hefur ekki verið stillt.'}
                         </Typography>
                       )}
                     </SectionCard>
