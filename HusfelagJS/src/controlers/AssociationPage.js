@@ -1027,9 +1027,18 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
                                             <Box sx={{ color: done ? '#2e7d32' : isPrimary ? NAVY : '#888', display: 'flex' }}>
                                                 {done ? <CheckCircleOutlineIcon sx={{ fontSize: 18, color: '#2e7d32' }} /> : def.icon}
                                             </Box>
-                                            <Typography sx={{ fontSize: 13.5, fontWeight: 500, color: isPrimary ? NAVY : '#111' }}>
+                                            <Typography sx={{ fontSize: 13.5, fontWeight: 500, color: isPrimary ? NAVY : '#111', flex: 1 }}>
                                                 {i + 1}. {def.title}
                                             </Typography>
+                                            <Tooltip title="Leiðbeiningar">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={e => { e.stopPropagation(); openHelp('uppsetning'); }}
+                                                    sx={{ p: '2px', color: '#bbb', '&:hover': { color: NAVY } }}
+                                                >
+                                                    <HelpOutlineIcon sx={{ fontSize: 14 }} />
+                                                </IconButton>
+                                            </Tooltip>
                                         </Box>
                                         <Typography sx={{ fontSize: 11.5, color: '#555', mt: 0.75, ml: 3.5 }}>
                                             {def.sub}
