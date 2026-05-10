@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 import bugsnag
 from celery import shared_task
-from django.conf import settings
+from django.utils.timezone import now as tz_now
 
 from associations.banks.landsbankinn import sync_account_transactions
 
@@ -15,21 +15,28 @@ def sync_transactions(association_id: int) -> dict:
     """
     Sync bank transactions for one association.
 
+    Skips silently if no AssociationBankSettings row exists (bank not configured).
     For each BankAccount:
     - from_date = last transaction date - 1 day (or Jan 1 of current year for first sync)
     - to_date = today
-    - Fetches paginated transactions and upserts by external_id.
+    Updates AssociationBankSettings.last_sync_at on success.
     """
-    from associations.models import Association, BankAccount, Transaction
-
-    if not getattr(settings, "BANK_LANDSBANKINN_ENABLED", False):
-        return {"skipped": True, "reason": "bank_disabled"}
+    from associations.models import Association, AssociationBankSettings, BankAccount, Transaction
 
     try:
         association = Association.objects.get(id=association_id)
     except Association.DoesNotExist:
         logger.warning("sync_transactions: association %s not found", association_id)
         return {"skipped": True, "reason": "not_found"}
+
+    try:
+        bank_settings = AssociationBankSettings.objects.get(association=association)
+    except AssociationBankSettings.DoesNotExist:
+        return {"skipped": True, "reason": "bank_not_configured"}
+
+    api_key = bank_settings.api_key
+    if not api_key:
+        return {"skipped": True, "reason": "api_key_missing"}
 
     total_created = 0
     total_skipped = 0
@@ -47,7 +54,7 @@ def sync_transactions(association_id: int) -> dict:
         to_date = today
 
         try:
-            result = sync_account_transactions(account, from_date, to_date)
+            result = sync_account_transactions(account, from_date, to_date, api_key)
             total_created += result["created"]
             total_skipped += result["skipped"]
         except Exception as exc:
@@ -63,6 +70,9 @@ def sync_transactions(association_id: int) -> dict:
                     "account_number": account.account_number,
                 },
             )
+
+    bank_settings.last_sync_at = tz_now()
+    bank_settings.save(update_fields=["last_sync_at"])
 
     logger.info(
         "sync_transactions: assoc=%s created=%s skipped=%s",
@@ -103,9 +113,9 @@ def sync_claim_statuses(association_id: int) -> dict:
        fetch it individually to get current status.
     4. Update BankClaim.status + synced_at. If PAID, set Collection.status = PAID.
     """
-    from django.utils.timezone import now as tz_now
     from associations.models import (
-        Association, BankClaim, BankClaimStatus, Collection, CollectionStatus,
+        Association, AssociationBankSettings, BankClaim, BankClaimStatus,
+        Collection, CollectionStatus,
     )
     from associations.banks.landsbankinn import _get, get_claim_status
 
@@ -113,6 +123,15 @@ def sync_claim_statuses(association_id: int) -> dict:
         association = Association.objects.get(id=association_id)
     except Association.DoesNotExist:
         return {"skipped": True, "reason": "not_found"}
+
+    try:
+        bank_settings = AssociationBankSettings.objects.get(association=association)
+        api_key = bank_settings.api_key
+    except AssociationBankSettings.DoesNotExist:
+        return {"skipped": True, "reason": "bank_not_configured"}
+
+    if not api_key:
+        return {"skipped": True, "reason": "api_key_missing"}
 
     unpaid_claims = BankClaim.objects.filter(
         collection__budget__association=association,
@@ -127,6 +146,7 @@ def sync_claim_statuses(association_id: int) -> dict:
     try:
         resp_data = _get(
             "/Claims/Claims/v1/Claims",
+            api_key,
             claimantNationalId=association.ssn,
             status="unpaid",
             dueDateFrom=earliest_due.isoformat(),
@@ -150,7 +170,7 @@ def sync_claim_statuses(association_id: int) -> dict:
             continue
 
         try:
-            new_status_raw = get_claim_status(claim.claim_id)
+            new_status_raw = get_claim_status(claim.claim_id, api_key)
         except Exception as exc:
             logger.error(
                 "sync_claim_statuses: individual fetch failed for claim %s: %s",

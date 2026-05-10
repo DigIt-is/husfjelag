@@ -120,10 +120,10 @@ JA_API_KEY = env("JA_API_KEY", default="")
 # ── Bank integration ──────────────────────────────────────────────────────────
 BANK_FERNET_KEY = env("BANK_FERNET_KEY", default="")
 
-BANK_LANDSBANKINN_ENABLED = env.bool("BANK_LANDSBANKINN_ENABLED", default=False)
-BANK_LANDSBANKINN_API_KEY = env("BANK_LANDSBANKINN_API_KEY", default="")
-BANK_LANDSBANKINN_CERT_PATH = env("BANK_LANDSBANKINN_CERT_PATH", default="")
-BANK_LANDSBANKINN_CERT_PASSWORD = env("BANK_LANDSBANKINN_CERT_PASSWORD", default="")
+# Landsbankinn mTLS certificate — injected by Doppler (never stored in .env)
+BUNADARSKILRIKI     = env("BUNADARSKILRIKI", default="")
+BUNADARSKILRIKI_PWD = env("BUNADARSKILRIKI_PWD", default="")
+
 BANK_LANDSBANKINN_AUTH_URL = env(
     "BANK_LANDSBANKINN_AUTH_URL",
     default="https://mtls-auth.landsbankinn.is/connect/token",

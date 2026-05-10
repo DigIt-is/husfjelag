@@ -346,34 +346,47 @@ class BankNotificationLog(models.Model):
         return f"{self.association} — {self.notification_type} ({'ok' if self.success else 'failed'})"
 
 
+class BankProvider(models.TextChoices):
+    LANDSBANKINN = "landsbankinn", "Landsbankinn"
+    ISLANDSBANKI = "islandsbanki", "Íslandsbanki"
+    ARION        = "arion",        "Arion"
+
+
 class BankTokenCache(models.Model):
-    """Single global row (always id=1). Stores the platform access token for Landsbankinn."""
-    bank = models.CharField(max_length=32)           # e.g. "LANDSBANKINN"
-    access_token = models.TextField()               # Fernet-encrypted
+    """Cached access tokens, one row per (bank, client_id) pair. Fernet-encrypted."""
+    bank       = models.CharField(max_length=32)
+    client_id  = models.CharField(max_length=256, default="")
+    access_token = models.TextField()
     expires_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "associations_banktokencache"
+        unique_together = [("bank", "client_id")]
 
     def __str__(self):
-        return f"{self.bank} token (expires {self.expires_at})"
+        return f"{self.bank}/{self.client_id[:8]}… token (expires {self.expires_at})"
 
 
 class AssociationBankSettings(models.Model):
-    """Per-association Landsbankinn configuration. Set up by CHAIR/CFO before claims can be sent."""
+    """Per-association bank connection. One active bank per association for now."""
     association = models.OneToOneField(
         Association, on_delete=models.CASCADE, related_name="bank_settings"
     )
-    template_id = models.CharField(max_length=64)  # Landsbankinn claim template ID
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    bank        = models.CharField(
+        max_length=32, choices=BankProvider.choices, default=BankProvider.LANDSBANKINN
+    )
+    api_key     = models.CharField(max_length=256, blank=True)  # per-association client_id
+    template_id = models.CharField(max_length=64, blank=True)   # Landsbankinn claims template
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "associations_associationbanksettings"
 
     def __str__(self):
-        return f"{self.association} — template {self.template_id}"
+        return f"{self.association} — {self.bank}"
 
 
 class BankClaimStatus(models.TextChoices):
