@@ -11,8 +11,8 @@
 
 trap 'kill 0' EXIT
 
-# Check if Doppler is configured for this directory.
-if (cd HusfelagPy && doppler configure get project 2>/dev/null | grep -qv "^$"); then
+# Check if Doppler is configured by doing a dry-run in HusfelagPy.
+if (cd HusfelagPy && doppler run -- true 2>/dev/null); then
   RUN="doppler run --"
   echo "Doppler configured — secrets injected from Doppler."
 else
