@@ -48,6 +48,7 @@ function AssociationPage() {
     const [bankConfigured, setBankConfigured] = useState(false);
     const [rules, setRules] = useState([]);
     const [collections, setCollections] = useState([]);
+    const [ratiosOk, setRatiosOk] = useState(true);
 
     useEffect(() => {
         if (!user) { navigate('/login'); return; }
@@ -68,12 +69,13 @@ function AssociationPage() {
         const year  = today.getFullYear();
         const collQs = assocParam ? `${assocParam}&month=${month}&year=${year}` : `?month=${month}&year=${year}`;
         try {
-            const [assocResp, ownersResp, banksResp, rulesResp, collResp] = await Promise.all([
+            const [assocResp, ownersResp, banksResp, rulesResp, collResp, aptsResp] = await Promise.all([
                 apiFetch(`${API_URL}/Association/${user.id}${assocParam}`),
                 apiFetch(`${API_URL}/Owner/${user.id}${assocParam}`),
                 apiFetch(`${API_URL}/BankAccount/${user.id}${assocParam}`),
                 apiFetch(`${API_URL}/CategoryRule/${user.id}${assocParam}`),
                 apiFetch(`${API_URL}/Collection/${user.id}${collQs}`),
+                apiFetch(`${API_URL}/Apartment/${user.id}${assocParam}`),
             ]);
 
             if (assocResp.ok) setAssociation(await assocResp.json());
@@ -94,6 +96,16 @@ function AssociationPage() {
             if (collResp.ok) {
                 const cd = await collResp.json();
                 setCollections(cd.rows || []);
+            }
+
+            if (aptsResp.ok) {
+                const apts = (await aptsResp.json()).filter(a => !a.deleted);
+                if (apts.length > 0) {
+                    const sum  = k => apts.reduce((s, a) => s + parseFloat(a[k] || 0), 0);
+                    setRatiosOk([sum('share'), sum('share_2'), sum('share_3')].every(v => Math.abs(v - 100) < 0.01));
+                } else {
+                    setRatiosOk(true);
+                }
             }
         } catch {
             setError('Tenging við þjón mistókst.');
@@ -271,6 +283,7 @@ function AssociationPage() {
                         collections={collections}
                         userId={user.id}
                         assocParam={assocParam}
+                        ratiosOk={ratiosOk}
                     />
 
 
@@ -1083,7 +1096,7 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
 
 const IS_MONTHS = ['janúar','febrúar','mars','apríl','maí','júní','júlí','ágúst','september','október','nóvember','desember'];
 
-function AthugasemdarPanel({ collections, userId, assocParam }) {
+function AthugasemdarPanel({ collections, userId, assocParam, ratiosOk }) {
     const [unclassifiedCount, setUnclassifiedCount] = React.useState(0);
     const [missingMonths, setMissingMonths] = React.useState([]);
     const [overdueCount, setOverdueCount] = React.useState(0);
@@ -1124,6 +1137,14 @@ function AthugasemdarPanel({ collections, userId, assocParam }) {
     const prevMissingMonths = missingMonths.filter(m => m !== month);
 
     const notifications = [];
+
+    if (!ratiosOk) {
+        notifications.push({
+            icon: <WarningAmberIcon sx={{ fontSize: 22, color: '#c62828', mt: '1px' }} />,
+            text: 'Eignarhlutföll íbúða eru ekki 100% — innheimta er ekki möguleg',
+            cta: { label: 'Laga hlutföll →', href: '/ibudir' },
+        });
+    }
 
     if (currentMonthMissing) {
         notifications.push({
