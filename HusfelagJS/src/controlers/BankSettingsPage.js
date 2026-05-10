@@ -362,6 +362,11 @@ export default function BankSettingsPage() {
                     : 'Engin samstilling framkvæmd ennþá.'}
                 </Typography>
               </Box>
+              {bankSettings.updated_at && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  Síðast uppfært: {new Date(bankSettings.updated_at).toLocaleString('is-IS')}
+                </Typography>
+              )}
               {user?.is_superadmin && (
                 <Box sx={{ mt: 1.5 }}>
                   <Button
