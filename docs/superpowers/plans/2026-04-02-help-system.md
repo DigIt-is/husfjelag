@@ -258,16 +258,16 @@ export const HELP = {
         intro: 'Fjárhagsyfirlit húsfélags. Sýnir tekjur, gjöld, samanburð við áætlun og stöðu ógreiddra húsgjalda.',
         items: [
             {
-                heading: 'KPI spjöldin',
-                body: 'Efst á síðunni eru þrjár tölur: heildar tekjur, heildar gjöld og ógreidd húsgjöld (PENDING innheimtufærslur). Þær gefa skjótta mynd af stöðu félagsins.',
+                heading: 'Lykiltölur',
+                body: 'Efst á síðunni eru þrjár tölur: heildar tekjur, heildar gjöld og ógreidd húsgjöld (ógreiddar innheimtukröfur). Þær gefa einfalda mynd af stöðu húsfélagsins.',
             },
             {
                 heading: 'Áætlun vs. raunveruleg gjöld',
-                body: 'Töfluna sýnir hvern útgjaldaflokk með áætlaðri og raunverulegri upphæð. Rauður litur þýðir að raunveruleg gjöld fara yfir áætlun, grænn þýðir undir áætlun.',
+                body: 'Taflan sýnir hvern útgjaldaflokk með áætluðum kostnaði og raunverulegri upphæð. Rauður litur þýðir að raunveruleg gjöld fara yfir áætlun, grænn þýðir undir áætlun.',
             },
             {
-                heading: 'Mánaðarlegt yfirlit',
-                body: 'Súluritin sýna mánaðarlegar tekjur og gjöld yfir árið. Þetta hjálpar til við að greina óvenjulegar sveiflur eða stóra einstaka greiðslu.',
+                heading: 'Á næstunni',
+                body: 'Hér eru helstu dagsetningar sem eru framundan og skilaboð frá stjórn húsfélagsins til þín.',
             },
         ],
     },

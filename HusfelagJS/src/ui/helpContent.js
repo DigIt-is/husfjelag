@@ -11,11 +11,11 @@ export const HELP = {
             },
             {
                 heading: '2. Skrá íbúðir',
-                body: 'Skráðu allar íbúðir húsfélagsins ásamt eignarhlutfalli hverrar íbúðar. Eignarhlutföllin ráðast af eignaskiptasamningi — þetta skjal fæst hjá sýslumanni eða í Þinglýsingarbók. Heildarhlutfall allra íbúða þarf að vera nákvæmlega 100% áður en hægt er að búa til innheimtu.',
+                body: 'Skráðu allar íbúðir húsfélagsins ásamt eignarhlutfalli hverrar íbúðar. Eignarhlutföllin ráðast af eignaskiptasamningi — þetta skjal fæst hjá sýslumanni eða í Þinglýsingarbók. Heildarhlutfall allra íbúða þarf að vera samtals 100% áður en hægt er að búa til innheimtu.',
             },
             {
                 heading: '3. Skrá eigendur',
-                body: 'Skráðu einn eiganda á hverja íbúð sem greiðanda. Greiðandinn fær innheimtukröfurnar á hverjum mánuði. Fleiri eigendur geta verið tengdir sömu íbúð en einungis einn er greiðandi í einu. Til að skrá eiganda þarftu kennitölu hans — nafn sækjum við sjálfkrafa úr Þjóðskrá.',
+                body: 'Skráðu alla eigendur íbúða og einn eiganda á hverja íbúð sem greiðanda. Greiðandinn fær innheimtukröfurnar á hverjum mánuði. Fleiri eigendur geta verið tengdir sömu íbúð en einungis einn er greiðandi í einu. Til að skrá eiganda þarftu kennitölu hans — nafn sækjum við sjálfkrafa úr Þjóðskrá.',
             },
             {
                 heading: '4. Bæta við stjórn',
@@ -23,11 +23,11 @@ export const HELP = {
             },
             {
                 heading: '5. Setja upp áætlun',
-                body: 'Búðu til árslega fjárhagsáætlun. Áætlunin sundurliðar áætlaðan kostnað í flokka (hitaveita, rafmagn, tryggingar, framkvæmdasjóður o.fl.) og reiknar sjálfkrafa mánaðarlega húsgjaldakröfu hverrar íbúðar miðað við eignarhlutfall. Þegar áætlun er virkjuð er hægt að hefja innheimtu.',
+                body: 'Búðu til árslega fjárhagsáætlun. Áætlunin sundurliðar áætlaðan kostnað í flokka (hitaveita, rafmagn, tryggingar, framkvæmdasjóður o.fl.) og reiknar sjálfkrafa mánaðarlega greiðslu hverrar íbúðar miðað við eignarhlutfall. Þegar áætlun er virkjuð er hægt að hefja innheimtu.',
             },
             {
                 heading: '6. Tengja banka',
-                body: 'Tengdu bankareikning húsfélagsins til að fá bankafærslur sjálfkrafa inn í kerfið. Kerfið reynir þá að para greiðslur við innheimtukröfur og merkja þær greiddar. Við styðjum Landsbanka, Íslandsbanka og Arion banka.',
+                body: 'Tengdu bankareikning húsfélagsins til að fá bankafærslur sjálfkrafa inn í kerfið. Kerfið reynir þá að para greiðslur við innheimtukröfur og merkja þær greiddar. Einnig flokkar kerfið allar færslur á bankareikningnum í kostnðaarflokka. Þú getur bætt við Flokkunarreglum síðar til að einfalda þér lífið.',
             },
         ],
     },
