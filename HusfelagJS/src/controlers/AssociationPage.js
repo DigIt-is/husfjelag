@@ -16,12 +16,12 @@ import BusinessIcon from '@mui/icons-material/Business';
 import GroupIcon from '@mui/icons-material/Group';
 import HomeIcon from '@mui/icons-material/Home';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import RuleIcon from '@mui/icons-material/Rule';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { UserContext } from './UserContext';
 import { apiFetch } from '../api';
 import SideBar from './Sidebar';
@@ -46,13 +46,23 @@ function AssociationPage() {
     const [error, setError] = useState('');
     const [boardDialogOpen, setBoardDialogOpen] = useState(false);
     const [bankAccounts, setBankAccounts] = useState([]);
+    const [bankConfigured, setBankConfigured] = useState(false);
     const [rules, setRules] = useState([]);
     const [collections, setCollections] = useState([]);
+    const [ratiosOk, setRatiosOk] = useState(true);
 
     useEffect(() => {
         if (!user) { navigate('/login'); return; }
         loadAll();
     }, [user, assocParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (!currentAssociation?.id) return;
+        apiFetch(`${API_URL}/associations/${currentAssociation.id}/bank/status`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => setBankConfigured(data?.configured ?? false))
+            .catch(() => {});
+    }, [currentAssociation?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadAll = async () => {
         const today = new Date();
@@ -60,12 +70,13 @@ function AssociationPage() {
         const year  = today.getFullYear();
         const collQs = assocParam ? `${assocParam}&month=${month}&year=${year}` : `?month=${month}&year=${year}`;
         try {
-            const [assocResp, ownersResp, banksResp, rulesResp, collResp] = await Promise.all([
+            const [assocResp, ownersResp, banksResp, rulesResp, collResp, aptsResp] = await Promise.all([
                 apiFetch(`${API_URL}/Association/${user.id}${assocParam}`),
                 apiFetch(`${API_URL}/Owner/${user.id}${assocParam}`),
                 apiFetch(`${API_URL}/BankAccount/${user.id}${assocParam}`),
                 apiFetch(`${API_URL}/CategoryRule/${user.id}${assocParam}`),
                 apiFetch(`${API_URL}/Collection/${user.id}${collQs}`),
+                apiFetch(`${API_URL}/Apartment/${user.id}${assocParam}`),
             ]);
 
             if (assocResp.ok) setAssociation(await assocResp.json());
@@ -86,6 +97,16 @@ function AssociationPage() {
             if (collResp.ok) {
                 const cd = await collResp.json();
                 setCollections(cd.rows || []);
+            }
+
+            if (aptsResp.ok) {
+                const apts = (await aptsResp.json()).filter(a => !a.deleted);
+                if (apts.length > 0) {
+                    const sum  = k => apts.reduce((s, a) => s + parseFloat(a[k] || 0), 0);
+                    setRatiosOk([sum('share'), sum('share_2'), sum('share_3')].every(v => Math.abs(v - 100) < 0.01));
+                } else {
+                    setRatiosOk(true);
+                }
             }
         } catch {
             setError('Tenging við þjón mistókst.');
@@ -118,12 +139,11 @@ function AssociationPage() {
         association.apartment_count > 0,                  // 2. Skrá íbúðir
         owners.length > 0,                                // 3. Skrá eigendur
         !!(association.chair && association.cfo),         // 4. Bæta við stjórn
-        bankAccounts.length > 0,                          // 5. Tengja banka
-        rules.length > 0,                                 // 6. Setja flokkunarreglur
-        collections.length > 0,                           // 7. Hefja innheimtu
+        collections.length > 0,                           // 5. Setja upp áætlun
+        bankConfigured,                                   // 6. Tengja banka
     ];
     const setupComplete = setupSteps.filter(Boolean).length;
-    const isSetup = setupComplete >= 6;
+    const isSetup = setupComplete >= 5;
 
     if (!isSetup) {
         return <UppsetningView
@@ -264,6 +284,7 @@ function AssociationPage() {
                         collections={collections}
                         userId={user.id}
                         assocParam={assocParam}
+                        ratiosOk={ratiosOk}
                     />
 
 
@@ -895,22 +916,29 @@ const NAVY = '#1D366F';
 const BORDER = '#e8e8e8';
 
 const SETUP_STEP_DEFS = [
-    { icon: <BusinessIcon sx={{ fontSize: 18 }} />,    title: 'Stofna húsfélag',      sub: 'Heiti, kennitala, heimilisfang',     navPath: null },
-    { icon: <HomeIcon sx={{ fontSize: 18 }} />,        title: 'Skrá íbúðir',          sub: 'Íbúðir + eignarhlutföll',           navPath: '/ibudir', navState: { openAdd: true } },
-    { icon: <PersonAddIcon sx={{ fontSize: 18 }} />,   title: 'Skrá eigendur',        sub: 'Eigendur íbúða',                    navPath: '/eigendur' },
-    { icon: <GroupIcon sx={{ fontSize: 18 }} />,       title: 'Bæta við stjórn',      sub: 'Formaður og gjaldkeri',             navPath: null },
-    { icon: <AccountBalanceIcon sx={{ fontSize: 18 }} />, title: 'Tengja banka',      sub: 'Sjálfvirk afstemming',              navPath: '/bank-settings' },
-    { icon: <RuleIcon sx={{ fontSize: 18 }} />,        title: 'Setja flokkunarreglur', sub: 'Sjálfvirk flokkun bankafærslna',   navPath: '/husfelag' },
-    { icon: <EventRepeatIcon sx={{ fontSize: 18 }} />, title: 'Hefja innheimtu',      sub: 'Mánaðarlegar greiðslur',            navPath: '/innheimta' },
+    { icon: <BusinessIcon sx={{ fontSize: 18 }} />,       title: 'Stofna húsfélag',   sub: 'Byrjaðu á að setja inn kennitölu húsfélagsins og við sækjum heiti, heimilsfang ofl.',                                       time: '~2 mín.',  navPath: null },
+    { icon: <HomeIcon sx={{ fontSize: 18 }} />,           title: 'Skrá íbúðir',       sub: 'Íbúðir & eignarhlutföll (sem má finna í eignaskiptasamningi) stýra hvernig kostnaði er skipt á íbúðir',                     time: '~15 mín.', navPath: '/ibudir', navState: { openAdd: true } },
+    { icon: <PersonAddIcon sx={{ fontSize: 18 }} />,      title: 'Skrá eigendur',     sub: 'Einn skráður eigandi íbúðar er greiðandi húsgjalda. Aðrir eigendur geta haft aðgang að yfirliti húsfélagsins hér á vefnum',             time: '~10 mín.', navPath: '/eigendur' },
+    { icon: <GroupIcon sx={{ fontSize: 18 }} />,          title: 'Bæta við stjórn',   sub: 'Formaður og gjaldkeri fá aðgang til að stýra áætlanagerð og innheimtu, breyta um eigendur, ásamt öðrum aðgerðum í kerfinu',               time: '~3 mín.',  navPath: null },
+    { icon: <EventRepeatIcon sx={{ fontSize: 18 }} />,    title: 'Setja upp áætlun',  sub: 'Húsfélög byggja sinn rekstur í kringum kostnaðráætlun fyrir árið. Þegar áætlun er klár þarf að hefja innheimtu á húsgjöldum',              time: '~10 mín.', navPath: '/aaetlun' },
+    { icon: <AccountBalanceIcon sx={{ fontSize: 18 }} />, title: 'Tengja banka',      sub: 'Tenging við bankann sér um að sækja stöðuna og færslur af bankareikningum, ásamt því að halda utan um innheimtuna',              time: '~10 mín.', navPath: '/bank-settings' },
 ];
 
 function UppsetningView({ association, setupSteps, setupComplete, owners, userId, assocParam, onNavigate, onAssociationUpdated }) {
     const [boardDialogOpen, setBoardDialogOpen] = React.useState(false);
+    const { openHelp } = useHelp();
 
     const firstIncomplete = setupSteps.findIndex(done => !done);
     const nextPath = firstIncomplete >= 0 ? SETUP_STEP_DEFS[firstIncomplete].navPath : null;
     const nextState = firstIncomplete >= 0 ? SETUP_STEP_DEFS[firstIncomplete].navState : null;
     const nextIsBoardStep = firstIncomplete === 3;
+    const nextTitle = firstIncomplete >= 0 ? SETUP_STEP_DEFS[firstIncomplete].title : '';
+    const nextContext = firstIncomplete === 2 && association.apartment_count > 0
+        ? ` (${association.apartment_count} íbúðir)`
+        : '';
+    const remainingMins = SETUP_STEP_DEFS
+        .filter((_, i) => !setupSteps[i])
+        .reduce((sum, def) => sum + (parseInt(def.time.replace(/[^0-9]/g, '')) || 0), 0);
 
     const chair = owners.find(o => o.role === 'CHAIR' || o.role === 'Formaður');
     const cfo   = owners.find(o => o.role === 'CFO'   || o.role === 'Gjaldkeri');
@@ -927,7 +955,7 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
                         <Typography variant="h5">{association.name}</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>{subtitle}</Typography>
                     </Box>
-                    <Button sx={ghostButtonSx} startIcon={<HelpOutlineIcon sx={{ fontSize: 17 }} />}>
+                    <Button sx={ghostButtonSx} startIcon={<HelpOutlineIcon sx={{ fontSize: 17 }} />} onClick={() => openHelp('uppsetning')}>
                         Leiðbeiningar
                     </Button>
                 </Box>
@@ -939,30 +967,36 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
                     <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '8px', p: '28px 32px' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <Box>
-                                <Eyebrow variant="green">UPPSETNING · {setupComplete} AF 7 LOKIÐ</Eyebrow>
+                                <Eyebrow variant="green">UPPSETNING · {setupComplete} AF 6 LOKIÐ</Eyebrow>
                                 <Typography sx={{ fontSize: 24, fontWeight: 300, mt: 0.75, mb: 0.5 }}>
                                     Settu upp húsfélagið —{' '}
                                     <Box component="span" sx={{ fontWeight: 600 }}>
-                                        {7 - setupComplete} skref eftir
+                                        {6 - setupComplete} skref eftir
                                     </Box>
                                 </Typography>
                                 <Typography sx={{ fontSize: 13.5, color: '#555' }}>
-                                    Eftir uppsetningu sér kerfið um innheimtu, afstemmingu og ársskýrslu.
+                                    Þú þarft að klára þessi 6 skref til að kerfið nái að halda utan um rekstur húsfélagsins þíns og auðvelda þér sjálfboðavinnuna.
                                 </Typography>
                             </Box>
                             <Box sx={{ textAlign: 'right', flexShrink: 0, ml: 4 }}>
                                 <Typography sx={{ fontSize: 28, fontWeight: 300, color: NAVY, fontFamily: '"JetBrains Mono", monospace' }}>
-                                    {Math.round(setupComplete / 7 * 100)}%
+                                    {Math.round(setupComplete / 6 * 100)}%
                                 </Typography>
                                 <Typography sx={{ fontSize: 11, color: '#888', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                                     LOKIÐ
                                 </Typography>
+                                {remainingMins > 0 && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4, mt: 0.5 }}>
+                                        <AccessTimeIcon sx={{ fontSize: 11, color: '#bbb' }} />
+                                        <Typography sx={{ fontSize: 11, color: '#aaa' }}>~{remainingMins} mín. eftir</Typography>
+                                    </Box>
+                                )}
                             </Box>
                         </Box>
 
                         {/* Progress bar */}
                         <Box sx={{ height: 5, background: '#f0f0f0', borderRadius: '3px', mt: 2.5, overflow: 'hidden' }}>
-                            <Box sx={{ width: `${Math.round(setupComplete / 7 * 100)}%`, height: '100%', background: '#08C076', transition: 'width 300ms ease' }} />
+                            <Box sx={{ width: `${Math.round(setupComplete / 6 * 100)}%`, height: '100%', background: '#08C076', transition: 'width 300ms ease' }} />
                         </Box>
 
                         {/* Step grid */}
@@ -993,13 +1027,30 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
                                             <Box sx={{ color: done ? '#2e7d32' : isPrimary ? NAVY : '#888', display: 'flex' }}>
                                                 {done ? <CheckCircleOutlineIcon sx={{ fontSize: 18, color: '#2e7d32' }} /> : def.icon}
                                             </Box>
-                                            <Typography sx={{ fontSize: 13.5, fontWeight: 500, color: isPrimary ? NAVY : '#111' }}>
-                                                {def.title}
+                                            <Typography sx={{ fontSize: 13.5, fontWeight: 500, color: isPrimary ? NAVY : '#111', flex: 1 }}>
+                                                {i + 1}. {def.title}
                                             </Typography>
+                                            <Tooltip title="Leiðbeiningar">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={e => { e.stopPropagation(); openHelp('uppsetning'); }}
+                                                    sx={{ p: '2px', color: '#bbb', '&:hover': { color: NAVY } }}
+                                                >
+                                                    <HelpOutlineIcon sx={{ fontSize: 14 }} />
+                                                </IconButton>
+                                            </Tooltip>
                                         </Box>
                                         <Typography sx={{ fontSize: 11.5, color: '#555', mt: 0.75, ml: 3.5 }}>
                                             {def.sub}
                                         </Typography>
+                                        {!done && (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4, mt: 0.75 }}>
+                                                <AccessTimeIcon sx={{ fontSize: 11, color: '#bbb' }} />
+                                                <Typography sx={{ fontSize: 11, color: '#aaa' }}>
+                                                    {def.time}
+                                                </Typography>
+                                            </Box>
+                                        )}
                                     </Box>
                                 );
                             })}
@@ -1013,75 +1064,49 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
                                     sx={primaryButtonSx}
                                     onClick={() => nextIsBoardStep ? setBoardDialogOpen(true) : onNavigate(nextPath, nextState)}
                                 >
-                                    Halda áfram með uppsetningu →
+                                    Næsta skref: {nextTitle}{nextContext}
                                 </Button>
                             </Box>
                         )}
                     </Box>
 
-                    {/* Stjórn + Íbúðir strip */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 3.5 }}>
+                    {/* Stjórn + Eignarhald strip — mirrors the full dashboard identity strip */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 2, mt: 3.5 }}>
                         <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '6px', p: '18px 20px' }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                            <Box sx={{ mb: 1.5 }}>
                                 <Eyebrow variant="navy">STJÓRN</Eyebrow>
                             </Box>
-                            {[
-                                { person: chair, roleLabel: 'Formaður', initColor: { bg: '#e8f5e9', color: '#2e7d32' } },
-                                { person: cfo,   roleLabel: 'Gjaldkeri', initColor: { bg: '#eef1f8', color: NAVY } },
-                            ].map(({ person, roleLabel, initColor }) =>
-                                person ? (
-                                    <Box key={roleLabel} sx={{ display: 'flex', gap: 1.75, alignItems: 'center', py: 1 }}>
-                                        <Box sx={{ width: 38, height: 38, borderRadius: '50%', background: initColor.bg, color: initColor.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>
-                                            {person.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                {[
+                                    { person: chair, roleLabel: 'Formaður',  initBg: '#e8f5e9', initColor: '#2e7d32' },
+                                    { person: cfo,   roleLabel: 'Gjaldkeri', initBg: '#eef1f8', initColor: NAVY },
+                                ].map(({ person, roleLabel, initBg, initColor }) => (
+                                    <Box key={roleLabel} sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                        <Box sx={{ width: 42, height: 42, borderRadius: '50%', background: initBg, color: initColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 14, flexShrink: 0 }}>
+                                            {person ? person.name.split(' ').map(w => w[0]).slice(0, 2).join('') : '—'}
                                         </Box>
                                         <Box>
-                                            <Typography sx={{ fontSize: 13.5, fontWeight: 500 }}>{person.name}</Typography>
+                                            <Typography sx={{ fontSize: 13.5, fontWeight: 500 }}>{person ? person.name : '—'}</Typography>
                                             <Typography sx={{ fontSize: 11.5, color: '#555' }}>{roleLabel}</Typography>
                                         </Box>
                                     </Box>
-                                ) : (
-                                    <Typography key={roleLabel} sx={{ fontSize: 12.5, color: '#888', py: 0.5 }}>
-                                        {roleLabel}: —
-                                    </Typography>
-                                )
-                            )}
+                                ))}
+                            </Box>
                         </Box>
 
-                        <Box sx={{ border: '1.5px dashed #c5cfe8', borderRadius: '6px', p: '18px 20px', background: '#fafbfd', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                            <Eyebrow variant="navy">ÍBÚÐIR · NÆSTA SKREF</Eyebrow>
-                            <Typography sx={{ fontSize: 14.5, fontWeight: 500, mt: 0.75, mb: 0.5 }}>
-                                {association.apartment_count > 0 ? `${association.apartment_count} íbúðir skráðar` : 'Engar íbúðir skráðar enn'}
-                            </Typography>
-                            {association.apartment_count === 0 && (
-                                <>
-                                    <Typography sx={{ fontSize: 12.5, color: '#555', mb: 1.75 }}>
-                                        Skráðu íbúðirnar svo eignarhlutföllin reiknist sjálfkrafa.
-                                    </Typography>
-                                    <Button variant="contained" sx={primaryButtonSx} onClick={() => onNavigate('/ibudir', { openAdd: true })} startIcon={<HomeIcon />}>
-                                        Skrá íbúðir
-                                    </Button>
-                                </>
-                            )}
-                        </Box>
-                    </Box>
-
-                    {/* Bank + Rules placeholders */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 2 }}>
-                        <Box sx={{ border: '1.5px dashed #c5cfe8', borderRadius: '6px', p: '22px', background: '#fafbfd', textAlign: 'center' }}>
-                            <AccountBalanceIcon sx={{ fontSize: 32, color: NAVY }} />
-                            <Typography sx={{ fontSize: 14.5, fontWeight: 500, mt: 1 }}>Tengja banka</Typography>
-                            <Typography sx={{ fontSize: 12, color: '#555', mt: 0.5, mb: 1.75 }}>Bankafærslur birtast sjálfkrafa og afstemmast við innheimtur</Typography>
-                            <Button variant="outlined" sx={secondaryButtonSx} onClick={() => onNavigate('/bank-settings')}>
-                                Tengja Landsbanka
-                            </Button>
-                        </Box>
-                        <Box sx={{ border: '1.5px dashed #c5cfe8', borderRadius: '6px', p: '22px', background: '#fafbfd', textAlign: 'center' }}>
-                            <RuleIcon sx={{ fontSize: 32, color: NAVY }} />
-                            <Typography sx={{ fontSize: 14.5, fontWeight: 500, mt: 1 }}>Engar flokkunarreglur</Typography>
-                            <Typography sx={{ fontSize: 12, color: '#555', mt: 0.5, mb: 1.75 }}>Búðu til reglur til að flokka bankafærslur sjálfkrafa</Typography>
-                            <Button variant="outlined" sx={secondaryButtonSx} onClick={() => onNavigate('/husfelag')}>
-                                Búa til fyrstu reglu
-                            </Button>
+                        <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '6px', p: '18px 20px' }}>
+                            <Eyebrow variant="navy">EIGNARHALD</Eyebrow>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.25 }}>
+                                {[
+                                    { value: association.apartment_count, label: 'Íbúðir' },
+                                    { value: owners.length, label: 'Eigendur' },
+                                ].map(({ value, label }) => (
+                                    <Box key={label}>
+                                        <Typography sx={{ fontSize: 24, fontWeight: 300 }}>{value}</Typography>
+                                        <Typography sx={{ fontSize: 11.5, color: '#555' }}>{label}</Typography>
+                                    </Box>
+                                ))}
+                            </Box>
                         </Box>
                     </Box>
 
@@ -1103,7 +1128,7 @@ function UppsetningView({ association, setupSteps, setupComplete, owners, userId
 
 const IS_MONTHS = ['janúar','febrúar','mars','apríl','maí','júní','júlí','ágúst','september','október','nóvember','desember'];
 
-function AthugasemdarPanel({ collections, userId, assocParam }) {
+function AthugasemdarPanel({ collections, userId, assocParam, ratiosOk }) {
     const [unclassifiedCount, setUnclassifiedCount] = React.useState(0);
     const [missingMonths, setMissingMonths] = React.useState([]);
     const [overdueCount, setOverdueCount] = React.useState(0);
@@ -1144,6 +1169,14 @@ function AthugasemdarPanel({ collections, userId, assocParam }) {
     const prevMissingMonths = missingMonths.filter(m => m !== month);
 
     const notifications = [];
+
+    if (!ratiosOk) {
+        notifications.push({
+            icon: <WarningAmberIcon sx={{ fontSize: 22, color: '#c62828', mt: '1px' }} />,
+            text: 'Eignarhlutföll íbúða eru ekki 100% — innheimta er ekki möguleg',
+            cta: { label: 'Laga hlutföll →', href: '/ibudir' },
+        });
+    }
 
     if (currentMonthMissing) {
         notifications.push({

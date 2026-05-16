@@ -56,9 +56,9 @@ function getInitials(name) {
     return name.trim().split(/\s+/).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 }
 
-function DlgSection({ children, hint }) {
+function DlgSection({ children, hint, sx: sxProp }) {
     return (
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mt: 2.5, mb: 1.25 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mt: 2.5, mb: 1.25, ...sxProp }}>
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: DLGDIS }}>
                 {children}
             </span>
@@ -574,7 +574,7 @@ function AddOwnerDialog({ open, onClose, userId, assocParam, apartments, ownersh
                 />
                 <KennitalaNameFeedback status={lookupStatus} name={lookedUpName} />
 
-                <DlgSection>② Tenging við íbúð</DlgSection>
+                <DlgSection sx={{ mt: 1 }}>② Tenging við íbúð</DlgSection>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 1.5 }}>
                     <FormControl size="small" fullWidth>
                         <InputLabel>Íbúð</InputLabel>
@@ -585,7 +585,7 @@ function AddOwnerDialog({ open, onClose, userId, assocParam, apartments, ownersh
                         </Select>
                     </FormControl>
                     <TextField
-                        label="Hlutfall"
+                        label="Eignarhlutfall"
                         value={share}
                         onChange={e => setShare(e.target.value.replace(/[^0-9.]/g, ''))}
                         size="small" type="number"
@@ -836,7 +836,7 @@ function EditOwnerDialog({ open, onClose, ownership, ownerships, isDisabled, onS
                 <DlgSection hint="Hvernig sameiginlegur kostnaður skiptist innan íbúðar">Hlutdeild í íbúð</DlgSection>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, alignItems: 'start' }}>
                     <TextField
-                        label="Hlutfall"
+                        label="Eignarhlutfall"
                         value={share}
                         onChange={e => setShare(e.target.value.replace(/[^0-9.]/g, ''))}
                         size="small" type="number"
