@@ -99,6 +99,9 @@ function CollectionPage() {
             .catch(err => setMatchError(typeof err === 'string' ? err : 'Villa við að aftengja greiðslu.'));
     };
 
+    // TODO: Landsbankinn returns 451 Unavailable For Legal Reasons when creating new claims
+    // (ref 6321984959025990060-A). Awaiting clarification from Landsbankinn before "Senda kröfu"
+    // can go live. Functionality is built but blocked by API access.
     const handleSendClaim = (collectionId) => {
         setClaimMessage(null);
         apiFetch(`${API_URL}/Collection/${collectionId}/send-claim`, { method: 'POST' })
