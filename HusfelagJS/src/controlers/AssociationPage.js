@@ -11,6 +11,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 import BusinessIcon from '@mui/icons-material/Business';
 import GroupIcon from '@mui/icons-material/Group';
@@ -1271,14 +1272,14 @@ function AthugasemdarPanel({ collections, userId, assocParam, ratiosOk, overdueI
     if (overdueIncomingClaims > 0) {
         notifications.push({
             icon: <WarningAmberIcon sx={{ fontSize: 22, color: '#c62828', mt: '1px' }} />,
-            text: `${overdueIncomingClaims} gjaldfallen${overdueIncomingClaims === 1 ? '' : 'ar'} krafa${overdueIncomingClaims === 1 ? '' : 'r'} í vanskilum`,
+            text: `${overdueIncomingClaims} gjaldfallin${overdueIncomingClaims === 1 ? '' : 'ar'} ${overdueIncomingClaims === 1 ? 'krafa' : 'kröfur'} í vanskilum`,
             cta: null,
         });
     }
 
     if (currentUnpaid > 0) {
         notifications.push({
-            icon: <WarningAmberIcon sx={{ fontSize: 22, color: '#e65100', mt: '1px' }} />,
+            icon: <InfoOutlinedIcon sx={{ fontSize: 22, color: '#1D366F', mt: '1px' }} />,
             text: `${currentUnpaid} íbúð${currentUnpaid === 1 ? '' : 'ir'} ógreiddar í ${IS_MONTHS[month - 1]}`,
             cta: { label: 'Senda áminningar →', href: '/innheimta' },
         });
