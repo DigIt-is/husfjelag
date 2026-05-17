@@ -1597,7 +1597,10 @@ class CategoryView(APIView):
                 except AccountingKey.DoesNotExist:
                     return Response({"detail": "Bókhaldslykill fyrir tekjur fannst ekki."}, status=status.HTTP_400_BAD_REQUEST)
 
-        category.save(update_fields=["name", "type", "expense_account", "income_account"])
+        if "is_default" in request.data:
+            category.is_default = bool(request.data["is_default"])
+
+        category.save(update_fields=["name", "type", "expense_account", "income_account", "is_default"])
         return Response(CategorySerializer(category).data)
 
     def delete(self, request, category_id):

@@ -104,7 +104,7 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = [
-            "id", "name", "type", "deleted",
+            "id", "name", "type", "deleted", "is_default",
             "expense_account_id", "expense_account_number", "expense_account_name",
             "income_account_id", "income_account_number", "income_account_name",
         ]
