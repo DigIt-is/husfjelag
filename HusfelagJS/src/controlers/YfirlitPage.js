@@ -7,6 +7,8 @@ import {
 import DownloadIcon from '@mui/icons-material/Download';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import GroupsIcon from '@mui/icons-material/Groups';
+import SummarizeIcon from '@mui/icons-material/Summarize';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
@@ -123,14 +125,19 @@ export default function YfirlitPage() {
         },
         {
             dateDay: '30', dateMon: 'APR',
-            icon: <EventRepeatIcon sx={{ fontSize: 18, color: NAVY }} />, bg: '#eef1f8',
+            icon: <GroupsIcon sx={{ fontSize: 18, color: '#2e7d32' }} />, bg: '#e8f5e9',
             title: 'Aðalfundur', meta: 'Aðalfundur húsfélags skal haldinn ár hvert fyrir lok aprílmánaðar.',
         },
         {
             dateDay: '1', dateMon: MONTH_NAMES_SHORT[nextMonth - 1].toUpperCase(),
             icon: <EventRepeatIcon sx={{ fontSize: 18, color: NAVY }} />, bg: '#eef1f8',
             title: 'Innheimta', meta: totalMonthly > 0 ? `${fmtAmount(totalMonthly)} áætlað` : 'Engin innheimta stillt',
-        },        
+        },
+        {
+            dateDay: '10', dateMon: 'DES',
+            icon: <SummarizeIcon sx={{ fontSize: 18, color: '#b45309' }} />, bg: '#fff8e1',
+            title: 'Búa til áætlun', meta: 'Undirbúa fjárhagsáætlun fyrir næsta ár',
+        },
     ];
 
     const assocName = reportData?.association?.name || currentAssociation?.name || '';
