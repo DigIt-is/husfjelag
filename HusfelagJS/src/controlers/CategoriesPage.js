@@ -9,6 +9,8 @@ import {
     DialogContentText,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { UserContext } from './UserContext';
 import { apiFetch } from '../api';
 import SideBar from './Sidebar';
@@ -100,6 +102,7 @@ function CategoriesPage() {
                                     <TableRow>
                                         <TableCell sx={HEAD_CELL_SX}>{lbl('name', 'Nafn')}</TableCell>
                                         <TableCell sx={HEAD_CELL_SX}>{lbl('type', 'Tegund')}</TableCell>
+                                        <TableCell sx={{ ...HEAD_CELL_SX, width: 110 }}>Sjálfgefið</TableCell>
                                         <TableCell />
                                     </TableRow>
                                 </TableHead>
@@ -204,12 +207,34 @@ function AddCategoryDialog({ open, onClose, userId, assocParam, onCreated }) {
 }
 
 function CategoryRow({ category, onSaved, isDisabled }) {
+    const { user } = React.useContext(UserContext);
     const [editOpen, setEditOpen] = useState(false);
+
+    const toggleDefault = async () => {
+        const resp = await apiFetch(`${API_URL}/Category/update/${category.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user.id, name: category.name, type: category.type, is_default: !category.is_default }),
+        });
+        if (resp.ok) onSaved();
+    };
+
     return (
         <>
             <TableRow hover sx={isDisabled ? { opacity: 0.55 } : {}}>
                 <TableCell>{category.name}</TableCell>
                 <TableCell>{typeLabel(category.type)}</TableCell>
+                <TableCell sx={{ width: 110 }}>
+                    {!isDisabled && (
+                        <Tooltip title={category.is_default ? 'Sjálfgefið — smelltu til að fjarlægja' : 'Merkja sem sjálfgefið'}>
+                            <IconButton size="small" onClick={toggleDefault}>
+                                {category.is_default
+                                    ? <StarIcon fontSize="small" sx={{ color: '#f59e0b' }} />
+                                    : <StarBorderIcon fontSize="small" sx={{ color: '#bbb' }} />}
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </TableCell>
                 <TableCell align="right" sx={{ width: 48 }}>
                     <Tooltip title={isDisabled ? 'Virkja / breyta' : 'Breyta'}>
                         <IconButton size="small" onClick={() => setEditOpen(true)}>

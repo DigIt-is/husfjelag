@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Box, Typography, CircularProgress, Button, Paper,
     Table, TableHead, TableRow, TableCell, TableBody,
-    TextField, Alert, IconButton, Tooltip,
+    TextField, Alert, IconButton, Tooltip, Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useHelp } from '../ui/HelpContext';
@@ -60,7 +60,6 @@ function BudgetWizardPage() {
 
     const handleCopyPrevious = () => {
         const filled = {};
-        categories.forEach(c => { filled[c.id] = 0; });
         if (previousBudget) {
             previousBudget.items.forEach(item => {
                 filled[item.category_id] = Math.round(parseFloat(item.amount || 0));
@@ -72,7 +71,7 @@ function BudgetWizardPage() {
 
     const handleStartFresh = () => {
         const blank = {};
-        categories.forEach(c => { blank[c.id] = 0; });
+        categories.filter(c => c.is_default).forEach(c => { blank[c.id] = 0; });
         setAmounts(blank);
         setStep(2);
     };
@@ -163,7 +162,7 @@ function BudgetWizardPage() {
                 {step === 2 && (
                     <Step2
                         hasPrevious={hasPrevious}
-                        categories={categories}
+                        allCategories={categories}
                         amounts={amounts}
                         setAmounts={setAmounts}
                         totals={totals}
@@ -178,7 +177,8 @@ function BudgetWizardPage() {
                         hasPrevious={hasPrevious}
                         totals={totals}
                         grandTotal={grandTotal}
-                        categories={categories}
+                        allCategories={categories}
+                        amounts={amounts}
                         submitting={submitting}
                         error={submitError}
                         onBack={() => setStep(2)}
@@ -246,14 +246,17 @@ function Step1({ year, hasPrevious, previousBudget, onCopy, onFresh }) {
     );
 }
 
-function Step2({ hasPrevious, categories, amounts, setAmounts, totals, grandTotal, onBack, onNext }) {
+function Step2({ hasPrevious, allCategories, amounts, setAmounts, totals, grandTotal, onBack, onNext }) {
     const stepLabel = hasPrevious ? 'Skref 2 af 3' : 'Skref 1 af 2';
+    const activeRows = allCategories.filter(c => c.type !== 'INCOME' && amounts[c.id] !== undefined);
+    const addableCategories = allCategories.filter(c => c.type !== 'INCOME' && amounts[c.id] === undefined);
+
     return (
         <Box sx={{ maxWidth: 680 }}>
             <Typography variant="caption" color="text.secondary">{stepLabel}</Typography>
             <Typography variant="h5" sx={{ mt: 0.5, mb: 3 }}>Upphæðir per flokk</Typography>
 
-            {categories.length === 0 ? (
+            {allCategories.filter(c => c.type !== 'INCOME').length === 0 ? (
                 <Alert severity="info">
                     Engir flokkar eru skilgreindir. Kerfisstjóri þarf að bæta við flokkum.
                 </Alert>
@@ -266,10 +269,11 @@ function Step2({ hasPrevious, categories, amounts, setAmounts, totals, grandTota
                                     <TableCell>Flokkur</TableCell>
                                     <TableCell>Tegund</TableCell>
                                     <TableCell align="right">Upphæð á ári (kr.)</TableCell>
+                                    <TableCell sx={{ width: 40 }} />
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {categories.filter(c => c.type !== 'INCOME').map(c => (
+                                {activeRows.map(c => (
                                     <TableRow key={c.id}>
                                         <TableCell>{c.name}</TableCell>
                                         <TableCell sx={{ color: TYPE_META[c.type]?.color || 'text.secondary' }}>
@@ -288,11 +292,49 @@ function Step2({ hasPrevious, categories, amounts, setAmounts, totals, grandTota
                                                 sx={{ width: 130 }}
                                             />
                                         </TableCell>
+                                        <TableCell align="center" sx={{ width: 40, p: 0 }}>
+                                            <Tooltip title="Fjarlægja">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => setAmounts(prev => {
+                                                        const next = { ...prev };
+                                                        delete next[c.id];
+                                                        return next;
+                                                    })}
+                                                    sx={{ color: 'text.disabled', '&:hover': { color: 'error.main' } }}
+                                                >
+                                                    ×
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     </Paper>
+
+                    {addableCategories.length > 0 && (
+                        <FormControl size="small" sx={{ mt: 1.5, minWidth: 260 }}>
+                            <InputLabel>+ Bæta við flokk</InputLabel>
+                            <Select
+                                value=""
+                                label="+ Bæta við flokk"
+                                onChange={e => {
+                                    const id = e.target.value;
+                                    if (id) setAmounts(prev => ({ ...prev, [id]: 0 }));
+                                }}
+                            >
+                                {addableCategories.map(c => (
+                                    <MenuItem key={c.id} value={c.id}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: TYPE_META[c.type]?.color || '#ccc', flexShrink: 0 }} />
+                                            {c.name}
+                                        </Box>
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    )}
 
                     <Paper variant="outlined" sx={{ mt: 2, p: 2 }}>
                         <Typography
@@ -329,7 +371,7 @@ function Step2({ hasPrevious, categories, amounts, setAmounts, totals, grandTota
                 <Button
                     variant="contained" color="secondary" sx={{ color: '#fff' }}
                     onClick={onNext}
-                    disabled={categories.length === 0}
+                    disabled={activeRows.length === 0}
                 >
                     Áfram →
                 </Button>
@@ -338,9 +380,10 @@ function Step2({ hasPrevious, categories, amounts, setAmounts, totals, grandTota
     );
 }
 
-function Step3({ year, hasPrevious, totals, grandTotal, categories, submitting, error, onBack, onConfirm }) {
+function Step3({ year, hasPrevious, totals, grandTotal, allCategories, amounts, submitting, error, onBack, onConfirm }) {
     const stepLabel = hasPrevious ? 'Skref 3 af 3' : 'Skref 2 af 2';
     const typesWithAmount = Object.entries(totals).filter(([, v]) => v > 0);
+    const activeCategories = allCategories.filter(c => amounts[c.id] !== undefined);
     return (
         <Box sx={{ maxWidth: 520 }}>
             <Typography variant="caption" color="text.secondary">{stepLabel}</Typography>
@@ -351,7 +394,7 @@ function Step3({ year, hasPrevious, totals, grandTotal, categories, submitting, 
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
                 {typesWithAmount.map(([type, total]) => {
-                    const count = categories.filter(c => c.type === type).length;
+                    const count = activeCategories.filter(c => c.type === type).length;
                     const meta = TYPE_META[type] || { label: type, color: 'inherit' };
                     return (
                         <Box

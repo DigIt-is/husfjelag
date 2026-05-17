@@ -91,9 +91,10 @@ class CategoryType(models.TextChoices):
 
 class Category(models.Model):
     # association FK removed — categories are global, managed by superadmin
-    name    = models.CharField(max_length=255)
-    type    = models.CharField(max_length=20, choices=CategoryType.choices)
-    deleted = models.BooleanField(default=False)
+    name       = models.CharField(max_length=255)
+    type       = models.CharField(max_length=20, choices=CategoryType.choices)
+    deleted    = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False)
     expense_account = models.ForeignKey(
         "AccountingKey", null=True, blank=True,
         on_delete=models.SET_NULL, related_name="expense_categories",

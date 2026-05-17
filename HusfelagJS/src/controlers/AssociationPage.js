@@ -1272,7 +1272,7 @@ function AthugasemdarPanel({ collections, userId, assocParam, ratiosOk, overdueI
     if (overdueIncomingClaims > 0) {
         notifications.push({
             icon: <WarningAmberIcon sx={{ fontSize: 22, color: '#c62828', mt: '1px' }} />,
-            text: `${overdueIncomingClaims} gjaldfallin${overdueIncomingClaims === 1 ? '' : 'ar'} ${overdueIncomingClaims === 1 ? 'krafa' : 'kröfur'} í vanskilum`,
+            text: `${overdueIncomingClaims} ${overdueIncomingClaims === 1 ? 'gjaldfallin krafa ógreidd' : 'gjaldfallnar kröfur ógreiddar'}`,
             cta: null,
         });
     }
