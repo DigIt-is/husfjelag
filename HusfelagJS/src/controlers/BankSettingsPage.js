@@ -26,7 +26,7 @@ const BANKS = [
 ];
 
 export default function BankSettingsPage() {
-  const { user, currentAssociation } = useContext(UserContext);
+  const { currentAssociation } = useContext(UserContext);
   const { openHelp } = useHelp();
 
   const [bankSettings, setBankSettings] = useState(null);  // null = no row in DB
