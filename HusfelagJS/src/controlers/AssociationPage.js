@@ -23,6 +23,7 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import EventNoteIcon from '@mui/icons-material/EventNote';
 import { UserContext } from './UserContext';
 import { apiFetch } from '../api';
 import SideBar from './Sidebar';
@@ -253,12 +254,13 @@ function AssociationPage() {
                         {/* Aðgerðir — 4 primary action cards */}
                         <Box sx={{ mt: 3 }}>
                             <Typography sx={{ fontSize: 14, fontWeight: 600, mb: 1.5 }}>Aðgerðir</Typography>
-                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1.5 }}>
                                 {[
                                     { icon: <SwapHorizIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Breyta stjórn', sub: 'Skipta um formann eða gjaldkera', onClick: () => setBoardDialogOpen(true) },
                                     { icon: <PersonAddIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Skrá nýjan eiganda', sub: 'Tekur yfir fyrir fyrri eiganda íbúðar', onClick: () => navigate('/eigendur') },
                                     { icon: <AssessmentIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Uppfæra áætlun', sub: `Tekjur og gjöld ${new Date().getFullYear()}`, onClick: () => navigate('/aaetlun') },
                                     { icon: <EventRepeatIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Búa til innheimtu', sub: 'Mánaðargreiðslur eigenda', onClick: () => navigate('/innheimta') },
+                                    { icon: <EventNoteIcon sx={{ fontSize: 20, color: NAVY }} />, title: 'Viðburðir', sub: 'Fundir, áminningar og verkefni', onClick: () => navigate('/vidburdir') },
                                 ].map((action, i) => (
                                     <Box key={i} onClick={action.onClick} sx={{
                                         border: `1px solid ${BORDER}`, borderRadius: '6px', p: '14px 16px',

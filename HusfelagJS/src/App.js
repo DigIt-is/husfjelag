@@ -18,6 +18,7 @@ import CollectionPage from './controlers/CollectionPage';
 import SuperAdminPage from './controlers/SuperAdminPage';
 import TransactionsPage from './controlers/TransactionsPage';
 import YfirlitPage from './controlers/YfirlitPage';
+import EventsPage from './controlers/EventsPage';
 import { UserContext } from './controlers/UserContext';
 import { HelpProvider } from './ui/HelpContext';
 import HomePage from './controlers/HomePage';
@@ -244,6 +245,7 @@ function App() {
             <Route path="/flokkar" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
             <Route path="/faerslur" element={<ProtectedRoute><TransactionsPage /></ProtectedRoute>} />
             <Route path="/yfirlit" element={<ProtectedRoute><YfirlitPage /></ProtectedRoute>} />
+            <Route path="/vidburdir" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
             <Route path="/innheimta" element={<ProtectedRoute><CollectionPage /></ProtectedRoute>} />
             <Route path="/superadmin" element={<ProtectedRoute><SuperAdminPage /></ProtectedRoute>} />
             <Route path="/bank-settings" element={<ProtectedRoute><BankSettingsPage /></ProtectedRoute>} />

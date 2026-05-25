@@ -12,6 +12,7 @@ from .views import (
     ApartmentImportSourcesView, ApartmentImportPreviewView, ApartmentImportConfirmView,
     ReportView, ReportYearsView, AnnualStatementView,
     RegistrationRequestView, AdminRegistrationRequestView,
+    AssociationEventView,
 )
 from .banks.views import (
     BankStatusView,
@@ -94,6 +95,10 @@ urlpatterns = [
     path("associations/<int:association_id>/bank/incoming-claims", IncomingClaimsView.as_view(), name="bank-incoming-claims"),
     path("health/cert", CertHealthView.as_view(), name="cert-health"),
     path("health/", SystemHealthView.as_view(), name="system-health"),
+    path("Event/update/<int:event_id>", AssociationEventView.as_view(), name="event-update"),
+    path("Event/delete/<int:event_id>", AssociationEventView.as_view(), name="event-delete"),
+    path("Event/<int:user_id>", AssociationEventView.as_view(), name="event-list"),
+    path("Event", AssociationEventView.as_view(), name="event-create"),
     path("RegistrationRequest", RegistrationRequestView.as_view(), name="registration-request-create"),
     path("admin/RegistrationRequest", AdminRegistrationRequestView.as_view(), name="admin-registration-request-list"),
     path("admin/RegistrationRequest/<int:req_id>", AdminRegistrationRequestView.as_view(), name="admin-registration-request-update"),

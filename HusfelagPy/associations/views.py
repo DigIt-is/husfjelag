@@ -18,12 +18,15 @@ from .models import (
     AccountingKey, AccountingKeyType, BankAccount, Transaction, TransactionStatus,
     CategoryRule, Collection, CollectionStatus, AssociationBankSettings,
     RegistrationRequest, RegistrationRequestStatus,
+    AssociationEvent, EventType, EventVisibility,
 )
 from .serializers import (
     AssociationSerializer, ApartmentSerializer, OwnershipSerializer,
     CategorySerializer, BudgetSerializer, BudgetItemSerializer, AssociationAccessSerializer,
     AccountingKeySerializer, BankAccountSerializer, TransactionSerializer,
+    AssociationEventSerializer,
 )
+from .events import seed_default_events
 from users.models import AuditLog
 from .scraper import lookup_association, scrape_hms_apartments, HmsScrapeError
 from .skattur_cloud import fetch_legal_entity, extract_prokuruhafar, parse_entity_for_association, SkatturNotFound
@@ -141,6 +144,80 @@ def _normalize_acct(s):
     return re.sub(r'[\s\-]', '', str(s or ''))
 
 
+def _seed_events_safe(association):
+    """Seed default calendar events for a new association without ever failing
+    the creation request if seeding errors."""
+    try:
+        seed_default_events(association)
+    except Exception as exc:  # pragma: no cover - defensive
+        import bugsnag
+        bugsnag.notify(exc, context="seed_default_events", extra_data={"association_id": association.id})
+
+
+def _parse_event_date(s):
+    if not s:
+        return None
+    try:
+        return datetime.date.fromisoformat(str(s)[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_event_time(s):
+    try:
+        return datetime.time.fromisoformat(str(s)[:8])
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_event_payload(data):
+    """Validate and normalise event create/update fields. Returns a dict of model
+    field values, or a 400 Response on invalid input."""
+    title = str(data.get("title", "")).strip()
+    if not title:
+        return Response({"detail": "Titill er nauðsynlegur."}, status=status.HTTP_400_BAD_REQUEST)
+
+    event_type = data.get("event_type", EventType.OTHER)
+    if event_type not in EventType.values:
+        return Response({"detail": "Ógild tegund viðburðar."}, status=status.HTTP_400_BAD_REQUEST)
+
+    visibility = data.get("visibility", EventVisibility.ALL)
+    if visibility not in EventVisibility.values:
+        return Response({"detail": "Ógildur sýnileiki."}, status=status.HTTP_400_BAD_REQUEST)
+
+    event_date = _parse_event_date(data.get("event_date"))
+    if event_date is None:
+        return Response({"detail": "Dagsetning er nauðsynleg (ÁÁÁÁ-MM-DD)."}, status=status.HTTP_400_BAD_REQUEST)
+
+    event_time = None
+    raw_time = data.get("event_time")
+    if raw_time not in ("", None):
+        event_time = _parse_event_time(raw_time)
+        if event_time is None:
+            return Response({"detail": "Ógildur tími (HH:MM)."}, status=status.HTTP_400_BAD_REQUEST)
+
+    reminder_days = data.get("reminder_days")
+    if reminder_days in ("", None):
+        reminder_days = None
+    else:
+        try:
+            reminder_days = int(reminder_days)
+        except (TypeError, ValueError):
+            return Response({"detail": "Áminning verður að vera heil tala daga."}, status=status.HTTP_400_BAD_REQUEST)
+        if reminder_days < 0:
+            return Response({"detail": "Áminning getur ekki verið neikvæð."}, status=status.HTTP_400_BAD_REQUEST)
+
+    return {
+        "title": title,
+        "description": str(data.get("description", "")).strip(),
+        "event_type": event_type,
+        "event_date": event_date,
+        "event_time": event_time,
+        "visibility": visibility,
+        "reminder_days": reminder_days,
+    }
+
+
 class AssociationView(APIView):
     @extend_schema(responses=AssociationSerializer)
     def get(self, request, user_id):
@@ -208,6 +285,7 @@ class AssociationView(APIView):
             raise
 
         AuditLog.objects.create(user=user, action='association_new', value=association.ssn, association=association)
+        _seed_events_safe(association)
         return Response(AssociationSerializer(association).data, status=status.HTTP_201_CREATED)
 
 
@@ -2283,6 +2361,7 @@ class AdminAssociationView(APIView):
                 return Response({"detail": "Þetta húsfélag er þegar skráð í kerfið."}, status=status.HTTP_409_CONFLICT)
             raise
 
+        _seed_events_safe(association)
         return Response(AssociationAccessSerializer(association, context={"user_id": None}).data, status=status.HTTP_201_CREATED)
 
 
@@ -2886,3 +2965,78 @@ class AdminRegistrationRequestView(APIView):
         reg_req.status = new_status
         reg_req.save(update_fields=["status"])
         return Response({"detail": "Staða uppfærð."})
+
+
+class AssociationEventView(APIView):
+    @extend_schema(responses=AssociationEventSerializer(many=True))
+    def get(self, request, user_id):
+        """GET /Event/{user_id} — List events for the user's association.
+        Members see only events with 'Allir' visibility; board sees everything."""
+        association = _resolve_assoc(user_id, request)
+        if not association or not _can_access_assoc(request, association):
+            return Response([], status=status.HTTP_200_OK)
+
+        qs = AssociationEvent.objects.filter(association=association, deleted=False)
+        if _get_role(request, association) not in (AssociationRole.CHAIR, AssociationRole.CFO):
+            qs = qs.filter(visibility=EventVisibility.ALL)
+        qs = qs.select_related("created_by")
+        return Response(AssociationEventSerializer(qs, many=True).data)
+
+    @extend_schema(request=AssociationEventSerializer, responses=AssociationEventSerializer)
+    def post(self, request):
+        """POST /Event — Create an event. Board only.
+        Body: {user_id, title, event_type, event_date, event_time?, visibility?,
+        reminder_days?, description?}"""
+        association = _resolve_assoc(request.data.get("user_id"), request)
+        if not association:
+            return Response({"detail": "Húsfélag fannst ekki."}, status=status.HTTP_404_NOT_FOUND)
+        err = _require_chair_or_cfo(request, association)
+        if err:
+            return err
+
+        parsed = _parse_event_payload(request.data)
+        if isinstance(parsed, Response):
+            return parsed
+
+        event = AssociationEvent.objects.create(
+            association=association, created_by=request.user, **parsed,
+        )
+        AuditLog.objects.create(
+            user=request.user, action='event_new', value=event.title[:255], association=association,
+        )
+        return Response(AssociationEventSerializer(event).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=AssociationEventSerializer, responses=AssociationEventSerializer)
+    def put(self, request, event_id):
+        """PUT /Event/update/{event_id} — Update an event. Board only."""
+        try:
+            event = AssociationEvent.objects.select_related("association").get(id=event_id, deleted=False)
+        except AssociationEvent.DoesNotExist:
+            return Response({"detail": "Viðburður fannst ekki."}, status=status.HTTP_404_NOT_FOUND)
+        err = _require_chair_or_cfo(request, event.association)
+        if err:
+            return err
+
+        parsed = _parse_event_payload(request.data)
+        if isinstance(parsed, Response):
+            return parsed
+
+        for field, value in parsed.items():
+            setattr(event, field, value)
+        # Re-arm the reminder so an edited schedule can fire again.
+        event.reminder_sent_at = None
+        event.save()
+        return Response(AssociationEventSerializer(event).data)
+
+    def delete(self, request, event_id):
+        """DELETE /Event/delete/{event_id} — Soft-delete an event. Board only."""
+        try:
+            event = AssociationEvent.objects.select_related("association").get(id=event_id, deleted=False)
+        except AssociationEvent.DoesNotExist:
+            return Response({"detail": "Viðburður fannst ekki."}, status=status.HTTP_404_NOT_FOUND)
+        err = _require_chair_or_cfo(request, event.association)
+        if err:
+            return err
+        event.deleted = True
+        event.save(update_fields=["deleted"])
+        return Response(status=status.HTTP_204_NO_CONTENT)

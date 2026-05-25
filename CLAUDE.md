@@ -95,6 +95,7 @@ All backend commands in local dev must be wrapped: `doppler run -- poetry run py
 - `BankProvider(TextChoices)` — `LANDSBANKINN`, `ISLANDSBANKI`, `ARION`
 - `AssociationBankSettings` — one-to-one with Association; fields: `bank` (BankProvider choice), `api_key` (per-association Landsbankinn client ID), `template_id`, `last_sync_at` (updated after each successful transaction sync), `created_at`, `updated_at`
 - `BankTokenCache` — cached OAuth tokens per `(bank, client_id)` unique pair; tokens stored Fernet-encrypted; `expires_at` used to avoid refreshing valid tokens (60 s early-expiry buffer)
+- `AssociationEvent` — calendar event/task for an association (annual meeting, statement, budget prep, collection, other). Fields: `title`, `description`, `event_type` (`EventType`: MEETING/STATEMENT/BUDGET/COLLECTION/OTHER), `event_date`, `event_time` (nullable), `visibility` (`EventVisibility`: ALL/BOARD), `reminder_days` (nullable; email N days before), `reminder_sent_at` (nullable; set once a reminder fires), `created_by` (FK User, SET_NULL), `created_at`, `deleted` (soft-delete). Defaults are seeded per association on creation (`associations/events.py:seed_default_events`); existing associations backfilled by migration `0036`.
 
 ### Authentication & Security
 
@@ -207,6 +208,16 @@ Note: components live in `src/controlers/` (intentional misspelling).
 - `POST /RegistrationRequest` — any authenticated user; creates a PENDING request; rejects duplicates (same user + assoc_ssn already PENDING) with 409
 - `GET /admin/RegistrationRequest` — superadmin only; returns all PENDING requests
 - `PATCH /admin/RegistrationRequest/<id>` — superadmin only; only accepts `{"status": "REVIEWED"}` (one-way transition)
+
+**Association event endpoints (`AssociationEventView`):**
+- `GET /Event/<user_id>` — list events for the user's association. Members see only `ALL`-visibility events; CHAIR/CFO/superadmin see all.
+- `POST /Event` — create (board only). Body: `{user_id, title, event_type, event_date, event_time?, visibility?, reminder_days?, description?}`. Writes `AuditLog` action `event_new`.
+- `PUT /Event/update/<event_id>` — update (board only). Clears `reminder_sent_at` so an edited schedule can fire again.
+- `DELETE /Event/delete/<event_id>` — soft-delete (board only).
+
+**Event reminder emails (Resend):**
+- Email is sent via Resend — `associations/notifications.py:send_email(to, subject, html)`. Configured by `RESEND_API_KEY` + `DEFAULT_FROM_EMAIL` (Doppler/env). When `RESEND_API_KEY` is empty (local dev) it logs instead of sending. Requires `RESEND_API_KEY` and a verified sending domain in production.
+- `associations/tasks.py:send_event_reminders` — Celery beat task (daily 08:00, in `CELERY_BEAT_SCHEDULE`). For each non-deleted event with `reminder_days` set and no `reminder_sent_at`, once today is on/after `event_date − reminder_days` (and the event hasn't passed), emails the audience matching visibility (BOARD → active CHAIR/CFO; ALL → all current active owners via non-deleted `ApartmentOwnership`) and stamps `reminder_sent_at` so it fires only once.
 
 **Bank status endpoint:**
 - `GET /associations/{id}/bank/status` — returns `{configured, last_sync_at, last_sync_ok}`. `configured` = `AssociationBankSettings` row exists. `last_sync_ok` = bool derived from most recent `BankApiAuditLog` status_code (null if no logs yet).

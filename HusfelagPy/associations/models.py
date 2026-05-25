@@ -424,6 +424,47 @@ class BankClaim(models.Model):
         return f"Claim {self.claim_id} ({self.status}) — {self.collection}"
 
 
+class EventType(models.TextChoices):
+    MEETING    = "MEETING",    "Fundur"
+    STATEMENT  = "STATEMENT",  "Ársreikningur"
+    BUDGET     = "BUDGET",     "Áætlun"
+    COLLECTION = "COLLECTION", "Innheimta"
+    OTHER      = "OTHER",      "Annað"
+
+
+class EventVisibility(models.TextChoices):
+    ALL   = "ALL",   "Allir"
+    BOARD = "BOARD", "Stjórn"
+
+
+class AssociationEvent(models.Model):
+    """A calendar event/task for an association — annual meeting, statement,
+    budget prep, collection, etc. Shown on the overview page and maintained
+    by the board."""
+    association = models.ForeignKey(Association, on_delete=models.CASCADE, related_name="events")
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    event_type = models.CharField(max_length=16, choices=EventType.choices, default=EventType.OTHER)
+    event_date = models.DateField()
+    event_time = models.TimeField(null=True, blank=True)
+    visibility = models.CharField(max_length=8, choices=EventVisibility.choices, default=EventVisibility.ALL)
+    reminder_days = models.IntegerField(null=True, blank=True)  # email N days before; null = no reminder
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)  # guards against duplicate sends
+    created_by = models.ForeignKey(
+        "users.User", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="created_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    deleted = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "associations_associationevent"
+        ordering = ["event_date", "event_time"]
+
+    def __str__(self):
+        return f"{self.title} ({self.event_date}) — {self.association}"
+
+
 class RegistrationRequestStatus(models.TextChoices):
     PENDING = "PENDING", "Pending"
     REVIEWED = "REVIEWED", "Reviewed"
