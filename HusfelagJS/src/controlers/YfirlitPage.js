@@ -9,6 +9,7 @@ import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import GroupsIcon from '@mui/icons-material/Groups';
 import SummarizeIcon from '@mui/icons-material/Summarize';
+import EventNoteIcon from '@mui/icons-material/EventNote';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
@@ -35,6 +36,15 @@ const monoSx = { fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontFe
 
 const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Maí', 'Jún', 'Júl', 'Ágú', 'Sep', 'Okt', 'Nóv', 'Des'];
 
+// Icon + colour per event type — mirrors the previous hardcoded overview rows.
+const EVENT_STYLE = {
+    MEETING:    { Icon: GroupsIcon,      color: '#2e7d32', bg: '#e8f5e9' },
+    STATEMENT:  { Icon: AssignmentIcon,  color: NAVY,      bg: '#eef1f8' },
+    BUDGET:     { Icon: SummarizeIcon,   color: '#b45309', bg: '#fff8e1' },
+    COLLECTION: { Icon: EventRepeatIcon, color: NAVY,      bg: '#eef1f8' },
+    OTHER:      { Icon: EventNoteIcon,   color: '#555',    bg: '#f3f4f6' },
+};
+
 export default function YfirlitPage() {
     const navigate = useNavigate();
     const { user, assocParam, currentAssociation } = React.useContext(UserContext);
@@ -51,6 +61,7 @@ export default function YfirlitPage() {
     const [loading, setLoading] = useState(true);
     const [bankAccounts, setBankAccounts] = useState([]);
     const [collections, setCollections] = useState([]);
+    const [events, setEvents] = useState([]);
     const [reportData, setReportData] = useState(null);
     const [annualOpen, setAnnualOpen] = useState(false);
     const [error, setError] = useState('');
@@ -67,10 +78,12 @@ export default function YfirlitPage() {
             apiFetch(`${API_URL}/BankAccount/${user.id}${bankQs}`).then(r => r.ok ? r.json() : []),
             apiFetch(`${API_URL}/Collection/${user.id}${collQs}`).then(r => r.ok ? r.json() : { rows: [] }),
             apiFetch(`${API_URL}/Report/${user.id}${repQs}`).then(r => r.ok ? r.json() : null),
-        ]).then(([banks, coll, report]) => {
+            apiFetch(`${API_URL}/Event/${user.id}${bankQs}`).then(r => r.ok ? r.json() : []),
+        ]).then(([banks, coll, report, evts]) => {
             setBankAccounts(banks || []);
             setCollections((coll?.rows) || []);
             setReportData(report);
+            setEvents(evts || []);
         }).catch(() => setError('Villa við að sækja gögn.'))
         .finally(() => setLoading(false));
     }, [user, assocParam, selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -103,7 +116,6 @@ export default function YfirlitPage() {
     const unpaidRows = collections.filter(r => r.status !== 'PAID');
     const unpaidAmount = unpaidRows.reduce((s, r) => s + parseFloat(r.amount_total || 0), 0);
     const unpaidCount = unpaidRows.length;
-    const totalMonthly = collections.reduce((s, r) => s + parseFloat(r.amount_total || 0), 0);
 
     // Past-year values come from reportData (computed server-side for the selected year)
     const displayBankBalance = isPastYear ? parseFloat(reportData?.year_end_bank_balance || 0) : totalBankBalance;
@@ -115,30 +127,27 @@ export default function YfirlitPage() {
     const totalActual = expenses.reduce((s, e) => s + parseFloat(e.actual || 0), 0);
     const budgetPct = totalBudget > 0 ? Math.round(totalActual / totalBudget * 100) : 0;
 
-    // ── Næstu skref (upcoming events) ─────────────────────────────────────────
-    const nextMonth  = month === 12 ? 1 : month + 1;
-    const upcoming = [
-        {
-            dateDay: '15', dateMon: 'APR',
-            icon: <AssignmentIcon sx={{ fontSize: 18, color: NAVY }} />, bg: '#eef1f8',
-            title: 'Ársreikningur', meta: 'Senda út ársreikning amk tveimur vikum fyrir aðalfund',
-        },
-        {
-            dateDay: '30', dateMon: 'APR',
-            icon: <GroupsIcon sx={{ fontSize: 18, color: '#2e7d32' }} />, bg: '#e8f5e9',
-            title: 'Aðalfundur', meta: 'Aðalfundur húsfélags skal haldinn ár hvert fyrir lok aprílmánaðar.',
-        },
-        {
-            dateDay: '1', dateMon: MONTH_NAMES_SHORT[nextMonth - 1].toUpperCase(),
-            icon: <EventRepeatIcon sx={{ fontSize: 18, color: NAVY }} />, bg: '#eef1f8',
-            title: 'Innheimta', meta: totalMonthly > 0 ? `${fmtAmount(totalMonthly)} áætlað` : 'Engin innheimta stillt',
-        },
-        {
-            dateDay: '10', dateMon: 'DES',
-            icon: <SummarizeIcon sx={{ fontSize: 18, color: '#b45309' }} />, bg: '#fff8e1',
-            title: 'Búa til áætlun', meta: 'Undirbúa fjárhagsáætlun fyrir næsta ár',
-        },
-    ];
+    // ── Á næstunni (upcoming events from the events feature) ───────────────────
+    const pad = n => String(n).padStart(2, '0');
+    const todayStr = `${today.getFullYear()}-${pad(month)}-${pad(today.getDate())}`;
+    const upcoming = (events || [])
+        .filter(e => e.event_date && e.event_date >= todayStr)
+        .sort((a, b) => (a.event_date + (a.event_time || '')).localeCompare(b.event_date + (b.event_time || '')))
+        .slice(0, 6)
+        .map(e => {
+            const [, mm, dd] = e.event_date.split('-').map(Number);
+            const st = EVENT_STYLE[e.event_type] || EVENT_STYLE.OTHER;
+            const Icon = st.Icon;
+            const parts = [];
+            if (e.event_time) parts.push(`kl. ${e.event_time.slice(0, 5)}`);
+            if (e.description) parts.push(e.description);
+            return {
+                dateDay: String(dd),
+                dateMon: (MONTH_NAMES_SHORT[mm - 1] || '').toUpperCase(),
+                icon: <Icon sx={{ fontSize: 18, color: st.color }} />, bg: st.bg,
+                title: e.title, meta: parts.join(' · '),
+            };
+        });
 
     const assocName = reportData?.association?.name || currentAssociation?.name || '';
 
@@ -286,6 +295,11 @@ export default function YfirlitPage() {
                                 <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Á næstunni</Typography>
                             </Box>
                             <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '6px' }}>
+                                {upcoming.length === 0 && (
+                                    <Typography sx={{ fontSize: 13, color: '#888', p: '18px 16px' }}>
+                                        Engir viðburðir framundan.
+                                    </Typography>
+                                )}
                                 {upcoming.map((u, i) => (
                                     <Box key={i} sx={{
                                         display: 'flex', gap: 1.75, p: '14px 16px', alignItems: 'center',

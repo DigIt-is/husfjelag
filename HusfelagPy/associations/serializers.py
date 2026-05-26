@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import (
     Association, AssociationAccess, AssociationRole, Apartment, ApartmentOwnership,
     Category, Budget, BudgetItem, AccountingKey, BankAccount, Transaction,
+    AssociationEvent,
 )
 
 
@@ -174,6 +175,20 @@ class BudgetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Budget
         fields = ["id", "year", "version", "is_active", "items"]
+
+
+class AssociationEventSerializer(serializers.ModelSerializer):
+    type_label = serializers.CharField(source="get_event_type_display", read_only=True)
+    visibility_label = serializers.CharField(source="get_visibility_display", read_only=True)
+    created_by_name = serializers.CharField(source="created_by.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = AssociationEvent
+        fields = [
+            "id", "title", "description", "event_type", "type_label",
+            "event_date", "event_time", "visibility", "visibility_label",
+            "reminder_days", "created_by_name", "created_at",
+        ]
 
 
 class AssociationAccessSerializer(serializers.ModelSerializer):

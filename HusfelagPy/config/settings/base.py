@@ -135,6 +135,11 @@ BANK_LANDSBANKINN_API_BASE = env(
 
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3010")
 
+# Email — Resend (transactional email; event reminders). When RESEND_API_KEY is
+# empty (local dev) the app logs instead of sending.
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Húsfélag <noreply@husfjelag.is>")
+
 # Bugsnag error monitoring
 BUGSNAG = {
     "api_key": env("BUGSNAG_API_KEY", default=""),
@@ -153,5 +158,9 @@ CELERY_BEAT_SCHEDULE = {
     "sync-all-claim-statuses": {
         "task": "associations.banks.tasks.sync_all_claim_statuses",
         "schedule": crontab(hour=3, minute=30),
+    },
+    "send-event-reminders": {
+        "task": "associations.tasks.send_event_reminders",
+        "schedule": crontab(hour=8, minute=0),
     },
 }

@@ -38,6 +38,7 @@ class AuditLog(models.Model):
         ('association_new', 'Association created'),
         ('budget_new', 'Budget created'),
         ('owner_new', 'Owner added'),
+        ('event_new', 'Event created'),
     ]
 
     created_at = models.DateTimeField(default=timezone.now)
