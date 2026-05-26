@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status as http_status
 
 from django.conf import settings
 
@@ -70,11 +69,10 @@ class SystemHealthView(APIView):
         cert_status   = _check_cert()
 
         all_ok = redis_status["ok"] and celery_status["ok"]
-        http_code = http_status.HTTP_200_OK if all_ok else http_status.HTTP_503_SERVICE_UNAVAILABLE
 
         return Response({
             "ok": all_ok,
             "redis":  redis_status,
             "celery": celery_status,
             "cert":   cert_status,
-        }, status=http_code)
+        })
