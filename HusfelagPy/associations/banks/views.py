@@ -208,13 +208,15 @@ class AssociationBankSettingsView(APIView):
         defaults = {"bank": bank}
         if "template_id" in request.data:
             defaults["template_id"] = request.data["template_id"].strip()
-        if "api_key" in request.data:
-            defaults["api_key"] = request.data["api_key"].strip()
 
         bs, _ = AssociationBankSettings.objects.update_or_create(
             association=association,
             defaults=defaults,
         )
+
+        if "api_key" in request.data:
+            bs.set_api_key(request.data["api_key"].strip())
+            bs.save(update_fields=["api_key"])
 
         # Kick off a sync whenever the API key is set or updated
         if "api_key" in request.data and request.data["api_key"].strip():
@@ -438,7 +440,7 @@ class IncomingClaimsView(APIView):
         except AssociationBankSettings.DoesNotExist:
             return Response({"claims": [], "configured": False})
 
-        if not settings.api_key:
+        if not settings.api_key:  # encrypted value present check
             return Response({"claims": [], "configured": False})
 
         today = date.today()
@@ -449,7 +451,7 @@ class IncomingClaimsView(APIView):
             due_date_from = year_ago
 
         try:
-            claims = fetch_incoming_claims(settings.api_key, association.ssn, due_date_from)
+            claims = fetch_incoming_claims(association.id, settings.get_api_key(), association.ssn, due_date_from)
             return Response({"claims": claims, "configured": True})
         except Exception as exc:
             logger.exception("fetch_incoming_claims failed for association %s", association_id)

@@ -34,7 +34,7 @@ def sync_transactions(association_id: int) -> dict:
     except AssociationBankSettings.DoesNotExist:
         return {"skipped": True, "reason": "bank_not_configured"}
 
-    api_key = bank_settings.api_key
+    api_key = bank_settings.get_api_key()
     if not api_key:
         return {"skipped": True, "reason": "api_key_missing"}
 
@@ -146,7 +146,7 @@ def sync_claim_statuses(association_id: int) -> dict:
 
     try:
         bank_settings = AssociationBankSettings.objects.get(association=association)
-        api_key = bank_settings.api_key
+        api_key = bank_settings.get_api_key()
     except AssociationBankSettings.DoesNotExist:
         return {"skipped": True, "reason": "bank_not_configured"}
 
@@ -166,6 +166,7 @@ def sync_claim_statuses(association_id: int) -> dict:
     try:
         resp_data = _get(
             "/Claims/Claims/v1/Claims",
+            association_id,
             api_key,
             claimantNationalId=association.ssn,
             status="unpaid",
@@ -190,7 +191,7 @@ def sync_claim_statuses(association_id: int) -> dict:
             continue
 
         try:
-            new_status_raw = get_claim_status(claim.claim_id, api_key)
+            new_status_raw = get_claim_status(claim.claim_id, association_id, api_key)
         except Exception as exc:
             logger.error(
                 "sync_claim_statuses: individual fetch failed for claim %s: %s",
