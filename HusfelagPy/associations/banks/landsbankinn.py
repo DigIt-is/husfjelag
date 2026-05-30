@@ -2,13 +2,13 @@
 Landsbankinn Customer API client.
 
 Module-level helpers for all API interactions:
-- get_access_token(api_key) — mTLS client_credentials, cached per api_key in BankTokenCache
-- _get(path, api_key, **params) — authenticated GET, returns dict
-- _get_raw(path, api_key, **params) — authenticated GET, returns Response (for pagination headers)
-- _post(path, api_key, body) — authenticated POST, returns dict
+- get_access_token(association_id, api_key) — mTLS client_credentials, cached per association in BankTokenCache
+- _get(path, association_id, api_key, **params) — authenticated GET, returns dict
+- _get_raw(path, association_id, api_key, **params) — authenticated GET, returns Response (for pagination headers)
+- _post(path, association_id, api_key, body) — authenticated POST, returns dict
 - sync_account_transactions(account, from_date, to_date, api_key) — fetch + upsert transactions
 - create_claim(collection, settings_obj) — send one collection row as a kröfu
-- get_claim_status(claim_id, api_key) — fetch current status from Claims API
+- get_claim_status(claim_id, association_id, api_key) — fetch current status from Claims API
 """
 
 import logging
@@ -28,22 +28,20 @@ logger = logging.getLogger(__name__)
 BANK = "LANDSBANKINN"
 
 
-def get_access_token(api_key: str) -> str:
+def get_access_token(association_id: int, api_key: str) -> str:
     """
-    Return a valid Landsbankinn access token for the given per-association api_key.
+    Return a valid Landsbankinn access token for the given association.
 
-    Checks BankTokenCache for a cached, non-expiring token keyed by (BANK, api_key).
+    Checks BankTokenCache for a cached, non-expiring token keyed by (BANK, association).
     If absent or expiring within 60 seconds, fetches a new token via mTLS POST
     and caches it Fernet-encrypted.
     """
-    from cryptography.fernet import Fernet
-    from associations.models import BankTokenCache
+    from associations.models import BankTokenCache, _get_fernet
 
-    fernet_key = settings.BANK_FERNET_KEY
-    fernet = Fernet(fernet_key.encode() if isinstance(fernet_key, str) else fernet_key)
+    fernet = _get_fernet()
 
     try:
-        cache = BankTokenCache.objects.get(bank=BANK, client_id=api_key)
+        cache = BankTokenCache.objects.get(bank=BANK, association_id=association_id)
         if cache.expires_at > now() + timedelta(seconds=60):
             return fernet.decrypt(cache.access_token.encode()).decode()
     except BankTokenCache.DoesNotExist:
@@ -72,7 +70,7 @@ def get_access_token(api_key: str) -> str:
 
     BankTokenCache.objects.update_or_create(
         bank=BANK,
-        client_id=api_key,
+        association_id=association_id,
         defaults={
             "access_token": encrypted,
             "expires_at": now() + timedelta(seconds=expires_in),
@@ -85,9 +83,9 @@ def _headers(token: str, api_key: str) -> dict:
     return {"Authorization": f"Bearer {token}", "apikey": api_key}
 
 
-def _get(path: str, api_key: str, **params) -> dict:
+def _get(path: str, association_id: int, api_key: str, **params) -> dict:
     """Authenticated GET to Landsbankinn API. Returns parsed JSON."""
-    token = get_access_token(api_key)
+    token = get_access_token(association_id, api_key)
     resp = requests.get(
         f"{settings.BANK_LANDSBANKINN_API_BASE}{path}",
         headers=_headers(token, api_key),
@@ -98,9 +96,9 @@ def _get(path: str, api_key: str, **params) -> dict:
     return resp.json()
 
 
-def _get_raw(path: str, api_key: str, **params):
+def _get_raw(path: str, association_id: int, api_key: str, **params):
     """Authenticated GET, returns raw Response object (needed for pagination headers)."""
-    token = get_access_token(api_key)
+    token = get_access_token(association_id, api_key)
     resp = requests.get(
         f"{settings.BANK_LANDSBANKINN_API_BASE}{path}",
         headers=_headers(token, api_key),
@@ -111,9 +109,9 @@ def _get_raw(path: str, api_key: str, **params):
     return resp
 
 
-def _post(path: str, api_key: str, body: dict) -> dict:
+def _post(path: str, association_id: int, api_key: str, body: dict) -> dict:
     """Authenticated POST to Landsbankinn API. Returns parsed JSON."""
-    token = get_access_token(api_key)
+    token = get_access_token(association_id, api_key)
     resp = requests.post(
         f"{settings.BANK_LANDSBANKINN_API_BASE}{path}",
         headers=_headers(token, api_key),
@@ -124,7 +122,7 @@ def _post(path: str, api_key: str, body: dict) -> dict:
     return resp.json()
 
 
-def fetch_opening_balance(api_key: str, bban: str, owner_ssn: str, as_of_date: date) -> Decimal | None:
+def fetch_opening_balance(association_id: int, api_key: str, bban: str, owner_ssn: str, as_of_date: date) -> Decimal | None:
     """
     Fetch the end-of-day balance for a specific account on a given date.
 
@@ -134,6 +132,7 @@ def fetch_opening_balance(api_key: str, bban: str, owner_ssn: str, as_of_date: d
     try:
         data = _get(
             "/Accounts/Accounts/v1/EndOfDayFinancials",
+            association_id,
             api_key,
             date=as_of_date.isoformat(),
             ownerNationalId=owner_ssn,
@@ -154,8 +153,8 @@ def fetch_opening_balance(api_key: str, bban: str, owner_ssn: str, as_of_date: d
     return None
 
 
-def _set_opening_balance(bank_account, api_key: str, bban: str, owner_ssn: str, ref_date: date) -> None:
-    balance = fetch_opening_balance(api_key, bban, owner_ssn, ref_date)
+def _set_opening_balance(bank_account, association_id: int, api_key: str, bban: str, owner_ssn: str, ref_date: date) -> None:
+    balance = fetch_opening_balance(association_id, api_key, bban, owner_ssn, ref_date)
     if balance is not None:
         bank_account.opening_balance = balance
         bank_account.opening_balance_date = ref_date
@@ -175,7 +174,7 @@ def discover_and_sync_accounts(association, api_key: str) -> dict:
     """
     from associations.models import BankAccount
 
-    data = _get("/Accounts/Accounts/v1/Accounts", api_key)
+    data = _get("/Accounts/Accounts/v1/Accounts", association.id, api_key)
     accounts = data.get("data", [])
 
     today = date.today()
@@ -206,7 +205,7 @@ def discover_and_sync_accounts(association, api_key: str) -> dict:
                     is_connected=True,
                     bank_status=acc.get("status", ""),
                 )
-                _set_opening_balance(bank_account, api_key, bban, association.ssn, ref_date)
+                _set_opening_balance(bank_account, association.id, api_key, bban, association.ssn, ref_date)
                 created += 1
         else:
             existing.is_connected = is_valid
@@ -215,7 +214,7 @@ def discover_and_sync_accounts(association, api_key: str) -> dict:
             if is_valid:
                 connected += 1
                 if existing.opening_balance_date is None:
-                    _set_opening_balance(existing, api_key, bban, association.ssn, ref_date)
+                    _set_opening_balance(existing, association.id, api_key, bban, association.ssn, ref_date)
             else:
                 disconnected += 1
 
@@ -245,6 +244,7 @@ def sync_account_transactions(
     while True:
         resp = _get_raw(
             f"/Accounts/Accounts/v1/Accounts/{bban}/Transactions",
+            account.association_id,
             api_key,
             bookingDateFrom=from_date.isoformat(),
             bookingDateTo=to_date.isoformat(),
@@ -302,7 +302,8 @@ def create_claim(collection, settings_obj) -> dict:
     Returns the raw API response dict (contains the new claim ID).
     Raises requests.HTTPError on failure.
     """
-    api_key = settings_obj.api_key
+    api_key = settings_obj.get_api_key()
+    association_id = settings_obj.association_id
     due_date = _last_day_of_month(collection.budget.year, collection.month)
     auto_cancel = date(due_date.year + 4, due_date.month, due_date.day)
     assoc_ssn = collection.budget.association.ssn
@@ -340,10 +341,10 @@ def create_claim(collection, settings_obj) -> dict:
             "gracePeriodDays": 0,
         },
     }
-    return _post("/Claims/Claims/v1/Claims", api_key, body)
+    return _post("/Claims/Claims/v1/Claims", association_id, api_key, body)
 
 
-def fetch_incoming_claims(api_key: str, payor_ssn: str, due_date_from: date) -> list[dict]:
+def fetch_incoming_claims(association_id: int, api_key: str, payor_ssn: str, due_date_from: date) -> list[dict]:
     """
     Fetch unpaid claims where the association is the payor (bills the association owes).
 
@@ -354,6 +355,7 @@ def fetch_incoming_claims(api_key: str, payor_ssn: str, due_date_from: date) -> 
     today = date.today()
     data = _get(
         "/Claims/Claims/v1/Claims",
+        association_id,
         api_key,
         payorNationalId=payor_ssn,
         status="unpaid",
@@ -379,12 +381,12 @@ def fetch_incoming_claims(api_key: str, payor_ssn: str, due_date_from: date) -> 
     return results
 
 
-def get_claim_status(claim_id: str, api_key: str) -> str:
+def get_claim_status(claim_id: str, association_id: int, api_key: str) -> str:
     """
     Fetch the current status of a claim from Landsbankinn.
 
     Returns the status string lowercased (e.g. "paid", "unpaid", "cancelled").
     Raises requests.HTTPError if the claim is not found.
     """
-    data = _get(f"/Claims/Claims/v1/Claims/{claim_id}", api_key)
+    data = _get(f"/Claims/Claims/v1/Claims/{claim_id}", association_id, api_key)
     return data.get("status", "").lower()

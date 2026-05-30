@@ -3,6 +3,13 @@ from decimal import Decimal
 from django.db import models
 
 
+def _get_fernet():
+    from cryptography.fernet import Fernet
+    from django.conf import settings
+    key = settings.BANK_FERNET_KEY
+    return Fernet(key.encode() if isinstance(key, str) else key)
+
+
 class Association(models.Model):
     ssn = models.CharField(max_length=10, unique=True)  # Kennitala
     name = models.CharField(max_length=255)
@@ -360,19 +367,21 @@ class BankProvider(models.TextChoices):
 
 
 class BankTokenCache(models.Model):
-    """Cached access tokens, one row per (bank, client_id) pair. Fernet-encrypted."""
-    bank       = models.CharField(max_length=32)
-    client_id  = models.CharField(max_length=256, default="")
+    """Cached access tokens, one row per (bank, association) pair. access_token is Fernet-encrypted."""
+    bank        = models.CharField(max_length=32)
+    association = models.ForeignKey(
+        Association, on_delete=models.CASCADE, related_name="bank_token_caches"
+    )
     access_token = models.TextField()
-    expires_at = models.DateTimeField()
-    updated_at = models.DateTimeField(auto_now=True)
+    expires_at  = models.DateTimeField()
+    updated_at  = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "associations_banktokencache"
-        unique_together = [("bank", "client_id")]
+        unique_together = [("bank", "association")]
 
     def __str__(self):
-        return f"{self.bank}/{self.client_id[:8]}… token (expires {self.expires_at})"
+        return f"{self.bank}/{self.association_id} token (expires {self.expires_at})"
 
 
 class AssociationBankSettings(models.Model):
@@ -383,7 +392,7 @@ class AssociationBankSettings(models.Model):
     bank        = models.CharField(
         max_length=32, choices=BankProvider.choices, default=BankProvider.LANDSBANKINN
     )
-    api_key     = models.CharField(max_length=256, blank=True)  # per-association client_id
+    api_key     = models.TextField(blank=True)  # Fernet-encrypted per-association Landsbankinn client_id
     template_id = models.CharField(max_length=64, blank=True)   # Landsbankinn claims template
     last_sync_at = models.DateTimeField(null=True, blank=True)
     created_at  = models.DateTimeField(auto_now_add=True)
@@ -394,6 +403,14 @@ class AssociationBankSettings(models.Model):
 
     def __str__(self):
         return f"{self.association} — {self.bank}"
+
+    def get_api_key(self) -> str:
+        if not self.api_key:
+            return ""
+        return _get_fernet().decrypt(self.api_key.encode()).decode()
+
+    def set_api_key(self, plaintext: str) -> None:
+        self.api_key = _get_fernet().encrypt(plaintext.encode()).decode() if plaintext else ""
 
 
 class BankClaimStatus(models.TextChoices):
