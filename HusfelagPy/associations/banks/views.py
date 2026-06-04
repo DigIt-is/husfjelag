@@ -545,6 +545,183 @@ class NotifyBudgetView(APIView):
         return Response({"detail": "Áætlun send til Landsbankans."}, status=status.HTTP_200_OK)
 
 
+class SendBudgetOverviewView(APIView):
+    """POST /associations/{id}/budget/send-overview?year=2026 — send rich budget+payer overview email to the bank."""
+    permission_classes = [IsAuthenticated]
+
+    # Map BankProvider → settings attribute holding the bank's email address.
+    _BANK_EMAIL_SETTING = {
+        BankProvider.LANDSBANKINN: "BANK_LANDSBANKINN_EMAIL",
+    }
+
+    def post(self, request, association_id):
+        from decimal import Decimal
+        from django.conf import settings as django_settings
+        from associations.models import Budget, BudgetItem, ApartmentOwnership, CategoryType
+        from associations.notifications import send_email, build_budget_overview_email
+
+        try:
+            association = Association.objects.get(id=association_id)
+        except Association.DoesNotExist:
+            return Response({"detail": "Félag ekki fundið."}, status=status.HTTP_404_NOT_FOUND)
+
+        err = _require_chair_or_cfo(request, association)
+        if err:
+            return err
+
+        year = request.query_params.get("year")
+        if not year:
+            return Response({"detail": "year er nauðsynlegt."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            year = int(year)
+        except ValueError:
+            return Response({"detail": "year verður að vera tala."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            bank_settings = AssociationBankSettings.objects.get(association=association)
+        except AssociationBankSettings.DoesNotExist:
+            return Response(
+                {"detail": "Bankastillingar eru ekki stilltar."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        if bank_settings.claim_mode != ClaimMode.BANK_SERVICE:
+            return Response(
+                {"detail": "Þessi aðgerð er eingöngu fyrir félög sem nota húsfélagaþjónustu bankans."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        email_setting = self._BANK_EMAIL_SETTING.get(bank_settings.bank)
+        bank_email = getattr(django_settings, email_setting, "") if email_setting else ""
+        if not bank_email:
+            return Response(
+                {"detail": f"Netfang bankans ({email_setting or 'BANK_EMAIL'}) er ekki stillt."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            budget = Budget.objects.get(association=association, year=year, is_active=True)
+        except Budget.DoesNotExist:
+            return Response(
+                {"detail": f"Engin virk áætlun fannst fyrir árið {year}."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        budget_items = list(
+            BudgetItem.objects.filter(budget=budget).select_related("category")
+        )
+
+        group_totals = {}
+        for item in budget_items:
+            t = item.category.type
+            if t == CategoryType.INCOME:
+                continue
+            group_totals[t] = group_totals.get(t, Decimal("0")) + item.amount
+
+        grand_total = sum(group_totals.values(), Decimal("0"))
+        if grand_total == 0:
+            return Response(
+                {"detail": "Áætlunin inniheldur engar fjárhæðir."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        apartments = list(association.apartments.filter(deleted=False))
+
+        if not apartments:
+            return Response(
+                {"detail": "Engar íbúðir eru skráðar fyrir þetta húsfélag."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        # ── Validation 1: each apartment must have exactly one payer ──────────
+        payer_count_by_apt: dict[int, int] = {apt.id: 0 for apt in apartments}
+        payer_by_apt: dict[int, object] = {}
+        for o in ApartmentOwnership.objects.filter(
+            apartment__association=association, is_payer=True, deleted=False
+        ).select_related("user", "apartment"):
+            if not o.apartment.deleted:
+                payer_count_by_apt[o.apartment_id] = payer_count_by_apt.get(o.apartment_id, 0) + 1
+                payer_by_apt[o.apartment_id] = o.user
+
+        apt_by_id = {apt.id: apt for apt in apartments}
+        missing_payer = [apt_by_id[aid].anr for aid, cnt in payer_count_by_apt.items() if cnt != 1]
+        if missing_payer:
+            apts_str = ", ".join(sorted(missing_payer))
+            return Response(
+                {"detail": f"Eftirfarandi íbúðir vantar greiðanda: {apts_str}. Vinsamlegast leiðréttu þetta áður en áætlun er send til bankans."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        # ── Validation 2: shares must sum to 100% for each active budget type ─
+        SHARE_FIELDS = {
+            CategoryType.SHARED: "share",
+            CategoryType.SHARE2: "share_2",
+            CategoryType.SHARE3: "share_3",
+            CategoryType.EQUAL:  "share_eq",
+        }
+        TYPE_LABELS = {
+            CategoryType.SHARED: "Sameiginlegt",
+            CategoryType.SHARE2: "Hiti",
+            CategoryType.SHARE3: "Lóð",
+            CategoryType.EQUAL:  "Jafnskipt",
+        }
+        bad_ratios = []
+        for cat_type, field in SHARE_FIELDS.items():
+            if not group_totals.get(cat_type):
+                continue  # no budget amount for this type — skip
+            total_share = sum(getattr(apt, field) for apt in apartments)
+            if abs(total_share - 100) > Decimal("0.01"):
+                bad_ratios.append(f"{TYPE_LABELS[cat_type]} ({total_share:.2f}%)")
+        if bad_ratios:
+            types_str = ", ".join(bad_ratios)
+            return Response(
+                {"detail": f"Hlutföll eru ekki 100% fyrir: {types_str}. Vinsamlegast leiðréttu hlutföllin áður en áætlun er send."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        payer_rows = []
+        for apt in apartments:
+            payer = payer_by_apt[apt.id]
+            monthly_fee = (
+                apt.share / 100 * group_totals.get(CategoryType.SHARED, Decimal("0")) / 12
+                + apt.share_2 / 100 * group_totals.get(CategoryType.SHARE2, Decimal("0")) / 12
+                + apt.share_3 / 100 * group_totals.get(CategoryType.SHARE3, Decimal("0")) / 12
+                + apt.share_eq / 100 * group_totals.get(CategoryType.EQUAL, Decimal("0")) / 12
+            )
+            payer_rows.append({
+                "apt_anr": apt.anr,
+                "payer_name": payer.name,
+                "payer_kennitala": payer.kennitala,
+                "share": apt.share,
+                "share_2": apt.share_2,
+                "share_3": apt.share_3,
+                "monthly_fee": monthly_fee,
+            })
+
+        html = build_budget_overview_email(
+            association, budget, budget_items, payer_rows, group_totals, grand_total
+        )
+        subject = f"Húsfélagsáætlun {year} — {association.name} ({association.ssn})"
+
+        try:
+            sent = send_email(to=bank_email, subject=subject, html=html)
+        except Exception as exc:
+            logger.error("SendBudgetOverviewView: failed for assoc %s: %s", association_id, exc)
+            bugsnag.notify(exc, context="send_budget_overview", extra_data={"association_id": association_id})
+            return Response(
+                {"detail": f"Villa við sendingu tölvupósts: {exc}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if not sent:
+            return Response(
+                {"detail": "Tölvupóstur var ekki sendur — RESEND_API_KEY er ekki stillt á þessum þjóni."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response({"detail": "Áætlun send til bankans."}, status=status.HTTP_200_OK)
+
+
 class CertHealthView(APIView):
     """
     GET /health/cert — no authentication required.

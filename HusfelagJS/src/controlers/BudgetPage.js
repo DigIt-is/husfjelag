@@ -46,6 +46,7 @@ function BudgetPage() {
     const [bankClaimMode, setBankClaimMode] = useState(null);
     const [notifyBudgetSending, setNotifyBudgetSending] = useState(false);
     const [notifyMessage, setNotifyMessage] = useState(null);
+    const [sendOverviewSending, setSendOverviewSending] = useState(false);
     const year = new Date().getFullYear();
 
     useEffect(() => {
@@ -72,6 +73,28 @@ function BudgetPage() {
                 setBankClaimMode(s.claim_mode || null);
             }
         } catch { /* bank settings are optional */ }
+    };
+
+    const handleSendOverview = async () => {
+        if (!currentAssociation?.id || !budget?.year) return;
+        setSendOverviewSending(true);
+        setNotifyMessage(null);
+        try {
+            const resp = await apiFetch(
+                `${API_URL}/associations/${currentAssociation.id}/budget/send-overview?year=${budget.year}`,
+                { method: 'POST' },
+            );
+            const d = await resp.json().catch(() => ({}));
+            if (resp.ok) {
+                setNotifyMessage({ type: 'success', text: d.detail || 'Yfirlit sent til greiðenda.' });
+            } else {
+                setNotifyMessage({ type: 'error', text: d.detail || `Villa við sendingu (${resp.status}).` });
+            }
+        } catch {
+            setNotifyMessage({ type: 'error', text: 'Tenging við þjón mistókst.' });
+        } finally {
+            setSendOverviewSending(false);
+        }
     };
 
     const handleNotifyBudget = async () => {
@@ -162,10 +185,10 @@ function BudgetPage() {
                                 variant="outlined"
                                 size="small"
                                 sx={secondaryButtonSx}
-                                onClick={handleNotifyBudget}
-                                disabled={notifyBudgetSending}
+                                onClick={handleSendOverview}
+                                disabled={sendOverviewSending}
                             >
-                                {notifyBudgetSending ? 'Sendir...' : 'Senda áætlun til Landsbankans'}
+                                {sendOverviewSending ? 'Sendir...' : 'Senda áætlun til bankans'}
                             </Button>
                         )}
                         <Button variant="contained" sx={primaryButtonSx} onClick={() => navigate('/aaetlun/nyr')}>
