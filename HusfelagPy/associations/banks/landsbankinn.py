@@ -36,6 +36,9 @@ def get_access_token(association_id: int, api_key: str) -> str:
     If absent or expiring within 60 seconds, fetches a new token via mTLS POST
     and caches it Fernet-encrypted.
     """
+    if not settings.BANK_LANDSBANKINN_AUTH_URL:
+        return "0"
+
     from associations.models import BankTokenCache, _get_fernet
 
     fernet = _get_fernet()

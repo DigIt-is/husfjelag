@@ -341,8 +341,8 @@ export default function BankSettingsPage() {
                       </Typography>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         {[
-                          { value: 'DIRECT_API', label: 'Stofna innheimtukröfur frá husfjelag.is', sub: 'Kröfur eru sendar beint í gegnum Landsbankinn API. Þarfnast innheimtusniðmáts.' },
-                          { value: 'BANK_SERVICE', label: 'Nota húsfélagaþjónustu bankans', sub: 'Landsbankinn sér um innheimtuna. Þú sendir áætlun til bankans í tölvupósti.' },
+                          { value: 'DIRECT_API', label: 'Stofna innheimtukröfur frá husfjelag.is', sub: 'Við sendum kröfurnar til Landsbankans í hverjum mánuði. Fyrst þarf að stofna innheimtusniðmát í Netbankanum og svo skrá upplýsingar hér fyrir neðan.' },
+                          { value: 'BANK_SERVICE', label: 'Nota húsfélagaþjónustu bankans', sub: 'Landsbankinn sér um innheimtuna. Þú sendir áætlun til bankans í tölvupósti og þau stofna mánaðarlega greiðsluseðla. Þau eru látin vita þegar áætlunin breytist.' },
                         ].map(opt => {
                           const selected = claimModeInput === opt.value;
                           return (

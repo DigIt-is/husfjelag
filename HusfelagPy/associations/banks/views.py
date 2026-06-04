@@ -457,9 +457,9 @@ class NotifyBudgetView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, association_id):
-        import resend
         from django.conf import settings as django_settings
         from associations.models import Budget, BudgetItem, Apartment
+        from associations.notifications import send_email
 
         try:
             association = Association.objects.get(id=association_id)
@@ -519,19 +519,27 @@ class NotifyBudgetView(APIView):
         html_body = "\n".join(lines)
 
         try:
-            resend.api_key = django_settings.RESEND_API_KEY
-            resend.Emails.send({
-                "from": django_settings.DEFAULT_FROM_EMAIL,
-                "to": [bank_email],
-                "subject": f"Húsfélagsáætlun {year} — {association.name} ({association.ssn})",
-                "html": html_body,
-            })
+            sent = send_email(
+                to=bank_email,
+                subject=f"Húsfélagsáætlun {year} — {association.name} ({association.ssn})",
+                html=html_body,
+            )
         except Exception as exc:
             logger.error("NotifyBudgetView: failed to send email for assoc %s: %s", association_id, exc)
             bugsnag.notify(exc, context="notify_budget", extra_data={"association_id": association_id, "year": year})
             return Response(
                 {"detail": f"Villa við sendingu tölvupósts: {exc}"},
                 status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if not sent:
+            logger.warning(
+                "NotifyBudgetView: email skipped for assoc %s — RESEND_API_KEY not configured",
+                association_id,
+            )
+            return Response(
+                {"detail": "Tölvupóstur var ekki sendur — RESEND_API_KEY er ekki stillt á þessum þjóni."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         return Response({"detail": "Áætlun send til Landsbankans."}, status=status.HTTP_200_OK)
