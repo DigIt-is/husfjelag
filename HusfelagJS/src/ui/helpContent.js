@@ -89,6 +89,37 @@ export const HELP = {
         ],
     },
 
+    'bank-settings': {
+        title: 'Bankastillingar',
+        intro: 'Hér tengir þú húsfélagið við Landsbankann. Tengingin leyfir kerfinu að sækja bankafærslur sjálfkrafa og, eftir innheimtuaðferð, senda eða tilkynna um mánaðarlegar húsgjaldakröfur.',
+        items: [
+            {
+                heading: 'API lykill',
+                body: 'API lykillinn er gefinn út af Landsbankanum og auðkennir húsfélagið þitt í samskiptum við bankann. Til að fá lykilinn þarft þú að fylla út umsóknareyðublað Landsbankans og senda það á ft@landsbankinn.is. Kerfið notar lykillinn eingöngu til að lesa bankafærslur — engar millifærslur eða breytingar á reikningum eru mögulegar.',
+            },
+            {
+                heading: 'Innheimtuaðferð',
+                body: 'Þú velur á milli tveggja leiða til að innheimta húsgjöld í gegnum Landsbankann.',
+            },
+            {
+                heading: 'Stofna innheimtukröfur frá husfjelag.is',
+                body: 'Kerfið sendir kröfur beint í gegnum Landsbankinn API í hverjum mánuði. Þetta krefst þess að þú stofnir innheimtusniðmát í Netbankanum og skráir auðkenni þess hér. Þegar kröfur eru sendar fær greiðandinn tilkynningu frá Landsbankanum og getur greitt í Netbankanum eða með greiðsluseðli.',
+            },
+            {
+                heading: 'Nota húsfélagaþjónustu bankans',
+                body: 'Landsbankinn sér um alla innheimtu á vegum húsfélagsins. Þegar áætlun er virkjuð sendir þú hana til Landsbankans með einum hnappi — bankinn stofnar svo greiðsluseðla og sendir þá til eigenda mánaðarlega. Þú þarft ekki innheimtusniðmát og kröfur eru ekki sendar beint úr kerfinu.',
+            },
+            {
+                heading: 'Innheimtusniðmát',
+                body: 'Krafist er ef þú velur beinan API-ham. Stofnaðu sniðmát í Netbanka Landsbankans undir „Innheimta" og sláðu inn auðkennið (t.d. A37) hér. Sniðmátið skilgreinir skilmála kröfunnar, þar á meðal seinkanagjöld og fresti.',
+            },
+            {
+                heading: 'Sjálfvirk samstilling',
+                body: 'Þegar lykillinn er stilltur sækir kerfið bankafærslur sjálfkrafa á hverju kvöldi. Þú getur einnig ýtt á „Samstilla núna" til að sækja færslur strax. Nýjar færslur birtast undir Færslur og eru sjálfkrafa paraðar við innheimtukröfur þar sem mögulegt er.',
+            },
+        ],
+    },
+
     aaetlun: {
         title: 'Áætlun',
         intro: 'Árleg fjárhagsáætlun húsfélags. Áætlunin skiptist í flokka og ákvarðar mánaðarlegar húsgjaldakröfur.',

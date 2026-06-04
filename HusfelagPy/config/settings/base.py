@@ -124,14 +124,12 @@ BANK_FERNET_KEY = env("BANK_FERNET_KEY", default="")
 BUNADARSKILRIKI     = env("BUNADARSKILRIKI", default="")
 BUNADARSKILRIKI_PWD = env("BUNADARSKILRIKI_PWD", default="")
 
-BANK_LANDSBANKINN_AUTH_URL = env(
-    "BANK_LANDSBANKINN_AUTH_URL",
-    default="https://mtls-auth.landsbankinn.is/connect/token",
-)
+BANK_LANDSBANKINN_AUTH_URL = env("BANK_LANDSBANKINN_AUTH_URL", default="")
 BANK_LANDSBANKINN_API_BASE = env(
     "BANK_LANDSBANKINN_API_BASE",
     default="https://apisandbox.landsbankinn.is/api",
 )
+BANK_LANDSBANKINN_EMAIL = env("BANK_LANDSBANKINN_EMAIL", default="")
 
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3010")
 
