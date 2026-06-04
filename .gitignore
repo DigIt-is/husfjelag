@@ -35,3 +35,6 @@ HusfelagJS/build/
 .worktrees/
 ca-certificate.crt
 .env
+
+# Editor
+.vscode/
