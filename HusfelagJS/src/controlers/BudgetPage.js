@@ -44,7 +44,6 @@ function BudgetPage() {
     const [budget, setBudget] = useState(undefined);
     const [error, setError] = useState('');
     const [bankClaimMode, setBankClaimMode] = useState(null);
-    const [notifyBudgetSending, setNotifyBudgetSending] = useState(false);
     const [notifyMessage, setNotifyMessage] = useState(null);
     const [sendOverviewSending, setSendOverviewSending] = useState(false);
     const year = new Date().getFullYear();
@@ -94,28 +93,6 @@ function BudgetPage() {
             setNotifyMessage({ type: 'error', text: 'Tenging við þjón mistókst.' });
         } finally {
             setSendOverviewSending(false);
-        }
-    };
-
-    const handleNotifyBudget = async () => {
-        if (!currentAssociation?.id || !budget?.year) return;
-        setNotifyBudgetSending(true);
-        setNotifyMessage(null);
-        try {
-            const resp = await apiFetch(
-                `${API_URL}/associations/${currentAssociation.id}/bank/notify-budget?year=${budget.year}`,
-                { method: 'POST' },
-            );
-            const d = await resp.json().catch(() => ({}));
-            if (resp.ok) {
-                setNotifyMessage({ type: 'success', text: d.detail || 'Áætlun send til Landsbankans.' });
-            } else {
-                setNotifyMessage({ type: 'error', text: d.detail || `Villa við sendingu (${resp.status}).` });
-            }
-        } catch {
-            setNotifyMessage({ type: 'error', text: 'Tenging við þjón mistókst.' });
-        } finally {
-            setNotifyBudgetSending(false);
         }
     };
 
