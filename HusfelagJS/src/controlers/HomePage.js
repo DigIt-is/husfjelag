@@ -534,6 +534,7 @@ function Footer({ onSignup }) {
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <Link to="/skilmalar" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none' }}>Skilmálar</Link>
                         <Link to="/personuvernd" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none' }}>Persónuvernd</Link>
+                        <a href="https://www.althingi.is/lagas/nuna/1994026.html" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textDecoration: 'none' }}>Lög um fjöleignarhús</a>
                     </Box>
                 </Box>
             </Box>
