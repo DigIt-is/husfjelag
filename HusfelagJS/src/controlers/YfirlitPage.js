@@ -286,44 +286,8 @@ export default function YfirlitPage() {
                         </Box>
                     </Box>
 
-                    {/* ── Two-column row: Næstu skref + Áætlun bars ─────── */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 3, mt: 4 }}>
-
-                        {/* Næstu skref */}
-                        <Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1.5 }}>
-                                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Á næstunni</Typography>
-                            </Box>
-                            <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '6px' }}>
-                                {upcoming.length === 0 && (
-                                    <Typography sx={{ fontSize: 13, color: '#888', p: '18px 16px' }}>
-                                        Engir viðburðir framundan.
-                                    </Typography>
-                                )}
-                                {upcoming.map((u, i) => (
-                                    <Box key={i} sx={{
-                                        display: 'flex', gap: 1.75, p: '14px 16px', alignItems: 'center',
-                                        borderBottom: i < upcoming.length - 1 ? `1px solid ${BORDER_ROW}` : 'none',
-                                    }}>                                        
-                                        <Box sx={{ width: 42, textAlign: 'center', flexShrink: 0 }}>
-                                            <Typography sx={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1.2 }}>
-                                                {u.dateMon}
-                                            </Typography>
-                                            <Typography sx={{ fontSize: 18, fontWeight: 600, lineHeight: 1.1 }}>
-                                                {u.dateDay}
-                                            </Typography>
-                                        </Box>
-                                        <Box sx={{ width: 32, height: 32, borderRadius: '8px', background: u.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                            {u.icon}
-                                        </Box>                                        
-                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <Typography sx={{ fontSize: 13.5, fontWeight: 500 }}>{u.title}</Typography>
-                                            <Typography sx={{ fontSize: 12, color: '#555', mt: 0.25 }}>{u.meta}</Typography>
-                                        </Box>                                        
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Box>
+                    {/* ── Two-column row: Áætlun bars + Næstu skref ─────── */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 3, mt: 4 }}>
 
                         {/* Áætlun vs raun — variance bars */}
                         <Box>
@@ -375,6 +339,42 @@ export default function YfirlitPage() {
                                         </Box>
                                     </Box>
                                 </Box>
+                            </Box>
+                        </Box>
+
+                        {/* Næstu skref */}
+                        <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 1.5 }}>
+                                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Á næstunni</Typography>
+                            </Box>
+                            <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: '6px' }}>
+                                {upcoming.length === 0 && (
+                                    <Typography sx={{ fontSize: 13, color: '#888', p: '18px 16px' }}>
+                                        Engir viðburðir framundan.
+                                    </Typography>
+                                )}
+                                {upcoming.map((u, i) => (
+                                    <Box key={i} sx={{
+                                        display: 'flex', gap: 1.75, p: '14px 16px', alignItems: 'center',
+                                        borderBottom: i < upcoming.length - 1 ? `1px solid ${BORDER_ROW}` : 'none',
+                                    }}>                                        
+                                        <Box sx={{ width: 42, textAlign: 'center', flexShrink: 0 }}>
+                                            <Typography sx={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1.2 }}>
+                                                {u.dateMon}
+                                            </Typography>
+                                            <Typography sx={{ fontSize: 18, fontWeight: 600, lineHeight: 1.1 }}>
+                                                {u.dateDay}
+                                            </Typography>
+                                        </Box>
+                                        <Box sx={{ width: 32, height: 32, borderRadius: '8px', background: u.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            {u.icon}
+                                        </Box>                                        
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Typography sx={{ fontSize: 13.5, fontWeight: 500 }}>{u.title}</Typography>
+                                            <Typography sx={{ fontSize: 12, color: '#555', mt: 0.25 }}>{u.meta}</Typography>
+                                        </Box>                                        
+                                    </Box>
+                                ))}
                             </Box>
                         </Box>
                     </Box>
