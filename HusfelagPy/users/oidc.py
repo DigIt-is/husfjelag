@@ -21,6 +21,23 @@ from django.conf import settings
 _jwks_cache: dict | None = None
 
 
+def build_end_session_url(id_token_hint: str) -> str:
+    """Build the RP-initiated logout URL (id.husfjelag.is end_session_endpoint).
+
+    Redirecting the browser here clears the IdP's SSO session; the IdP then
+    returns the user to post_logout_redirect_uri. Without it the IdP keeps its
+    session cookie and silently re-authenticates on the next login.
+
+    post_logout_redirect_uri must be registered on the client (char-for-char).
+    """
+    params = {
+        "id_token_hint": id_token_hint,
+        "post_logout_redirect_uri": settings.FRONTEND_URL.rstrip("/") + "/",
+        "client_id": settings.OIDC_CLIENT_ID,
+    }
+    return f"{settings.OIDC_END_SESSION_ENDPOINT}?{urlencode(params)}"
+
+
 def generate_state() -> str:
     return secrets.token_urlsafe(32)
 

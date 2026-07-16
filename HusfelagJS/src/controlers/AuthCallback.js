@@ -46,7 +46,7 @@ function AuthCallback() {
                     return;
                 }
 
-                const { token } = await tokenResp.json();
+                const { token, id_token } = await tokenResp.json();
                 if (!token) {
                     navigate('/login?error=token_exchange_failed');
                     return;
@@ -63,7 +63,8 @@ function AuthCallback() {
 
                 if (profileResp.ok) {
                     const profile = await profileResp.json();
-                    const user = { ...profile, token };
+                    // id_token is kept for RP-initiated logout (id_token_hint).
+                    const user = { ...profile, token, id_token };
                     localStorage.setItem('user', JSON.stringify(user));
                     setUser(user);
                     if (!profile.terms_accepted) {

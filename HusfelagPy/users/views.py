@@ -19,7 +19,7 @@ def _get_client_ip(request):
     if xff:
         return xff.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR')
-from .oidc import build_auth_url, exchange_code, generate_pkce_pair, generate_state, validate_id_token, create_access_token
+from .oidc import build_auth_url, build_end_session_url, exchange_code, generate_pkce_pair, generate_state, validate_id_token, create_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +204,11 @@ class OIDCCallbackView(APIView):
         # The frontend exchanges this short code for the real token via POST /auth/token.
         # This keeps the JWT out of server logs and browser history.
         exchange_code_val = secrets.token_urlsafe(32)
-        cache.set(f"auth_code:{exchange_code_val}", jwt_token, timeout=60)
+        cache.set(
+            f"auth_code:{exchange_code_val}",
+            {"jwt": jwt_token, "id_token": tokens["id_token"]},
+            timeout=60,
+        )
 
         response = HttpResponseRedirect(
             f"{frontend_url}/auth/callback?code={exchange_code_val}"
@@ -230,13 +234,32 @@ class OIDCTokenExchangeView(APIView):
             return Response({"detail": "Missing code."}, status=status.HTTP_400_BAD_REQUEST)
 
         cache_key = f"auth_code:{exchange_code_val}"
-        jwt_token = cache.get(cache_key)
-        if not jwt_token:
+        cached = cache.get(cache_key)
+        if not cached:
             return Response({"detail": "Invalid or expired code."}, status=status.HTTP_400_BAD_REQUEST)
 
         # One-time use — delete immediately
         cache.delete(cache_key)
-        return Response({"token": jwt_token})
+        # id_token is returned for RP-initiated logout (used as id_token_hint).
+        return Response({"token": cached["jwt"], "id_token": cached["id_token"]})
+
+
+class OIDCLogoutView(APIView):
+    """
+    GET /auth/logout?id_token_hint=<id_token>
+    RP-initiated logout: redirects to the id.husfjelag.is end_session_endpoint
+    so the IdP clears its SSO session, then returns the user to the frontend.
+    Without this the IdP keeps its cookie and silently re-authenticates on the
+    next login (no prompt).
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        id_token_hint = request.GET.get("id_token_hint", "")
+        if not id_token_hint:
+            # No hint (e.g. already-expired session) — just land on the frontend.
+            return HttpResponseRedirect(settings.FRONTEND_URL)
+        return HttpResponseRedirect(build_end_session_url(id_token_hint))
 
 
 class KennitalaLookupView(APIView):
