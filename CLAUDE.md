@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Húsfjelag** is an Icelandic SaaS platform for Building Associations (Húsfélag). Users authenticate via Kenni (Icelandic national identity provider, OIDC/PKCE flow). The system manages house associations, apartments, ownership percentages, fee collection, invoices, budgets, and role-based access.
+**Húsfjelag** is an Icelandic SaaS platform for Building Associations (Húsfélag). Users authenticate via **id.husfjelag.is**, Húsfjelag's own OIDC identity provider (OIDC/PKCE flow; replaced Kenni on 2026-07-15). The system manages house associations, apartments, ownership percentages, fee collection, invoices, budgets, and role-based access.
 
 ## Subprojects
 
@@ -62,7 +62,7 @@ HusfelagPy/
 │   │   └── prod.py     # DEBUG=False, strict CORS, HTTPS
 │   ├── celery.py
 │   └── urls.py
-├── users/              # User model, JWT auth, Kenni OIDC flow
+├── users/              # User model, JWT auth, id.husfjelag.is OIDC flow
 └── associations/       # Association, Apartment, Transaction, Budget, Collection models + endpoints
 ```
 
@@ -99,13 +99,15 @@ All backend commands in local dev must be wrapped: `doppler run -- poetry run py
 
 ### Authentication & Security
 
-**Auth provider:** Kenni (Icelandic national identity, OIDC). Docs: https://docs.kenni.is
+**Auth provider:** id.husfjelag.is — Húsfjelag's own OIDC identity provider (Authorization Code + PKCE, `client_secret_basic`). Replaced Kenni on 2026-07-15. Endpoints configured in `config/settings/base.py` under `OIDC_*`.
 
 **Flow:**
-1. Frontend redirects to `GET /auth/login` → backend redirects to Kenni with PKCE
-2. Kenni redirects to `GET /auth/callback` → backend validates, creates/updates User, stores JWT in cache under a one-time exchange code
-3. Frontend receives `?code=<exchange_code>` → POSTs to `POST /auth/token` → gets JWT
+1. Frontend redirects to `GET /auth/login` → backend redirects to id.husfjelag.is with PKCE
+2. id.husfjelag.is redirects to `GET /auth/callback` → backend validates the id_token, creates/updates User, stores the JWT (+ the IdP id_token, kept for logout) in cache under a one-time exchange code
+3. Frontend receives `?code=<exchange_code>` → POSTs to `POST /auth/token` → gets `{token, id_token}`
 4. All subsequent requests: `Authorization: Bearer <jwt>`
+
+**Logout (RP-initiated):** `GET /auth/logout?id_token_hint=<id_token>` redirects to the IdP `end_session_endpoint` (with `post_logout_redirect_uri` + `client_id`) so the IdP clears its SSO session, then returns to the frontend. Without it the IdP silently re-authenticates on the next login. The frontend stores `id_token` on login and hands off to `/auth/logout` on sign-out. `post_logout_redirect_uri` must be registered on the client char-for-char (`FRONTEND_URL` + trailing slash).
 
 **JWT:** HS256, signed with `SECRET_KEY`, expires 24h. Issued by `users/oidc.py:create_access_token(user_id: int)` — takes the integer user ID, **not** the User object. `sub` claim is `str(user_id)`. `JWTAuthentication` looks up the user via `User.objects.get(id=int(payload["sub"]))`.
 
@@ -116,9 +118,10 @@ All backend commands in local dev must be wrapped: `doppler run -- poetry run py
 **Terms acceptance:** `user.terms_accepted` (bool) is returned by `UserSerializer` via `SerializerMethodField` — true if a `TermsAcceptance` row exists for the user. `POST /auth/terms/accept` creates the record (idempotent) and returns the updated user object.
 
 **Open endpoints (no JWT required):**
-- `GET /auth/login` — starts Kenni OIDC flow
-- `GET /auth/callback` — Kenni redirect target
-- `POST /auth/token` — exchange one-time code for JWT
+- `GET /auth/login` — starts id.husfjelag.is OIDC flow
+- `GET /auth/callback` — id.husfjelag.is redirect target
+- `POST /auth/token` — exchange one-time code for JWT (+ id_token)
+- `GET /auth/logout` — RP-initiated logout; redirects to the IdP end_session endpoint
 - `POST /Login` — returns 410 Gone (legacy, disabled)
 - `GET /health/cert` — mTLS certificate health; returns `{valid, expires_at, days_remaining, warning}`
 
@@ -162,7 +165,7 @@ Note: components live in `src/controlers/` (intentional misspelling).
 - `/` → `HomePage.js` — public landing page
 - `/skilmalar` → `SkilmalarPage.js` — public Terms of Service (Icelandic, 10 sections)
 - `/personuvernd` → `PersonuverndPage.js` — public Privacy Policy (GDPR/law 90/2018, Icelandic, 11 sections)
-- `/login` → `Login.js` — redirects to Kenni via backend
+- `/login` → `Login.js` — redirects to id.husfjelag.is via backend
 - `/auth/callback` → `AuthCallback.js` — exchanges code for JWT, fetches profile; redirects to `/terms-accept` if `!terms_accepted`, else `/profile` if email/phone missing, else `/dashboard`
 - `/terms-accept` → `TermsAcceptPage.js` — protected; shown on first login; user must accept before accessing any other protected route
 - `/dashboard` → redirects to `/yfirlit`
@@ -187,7 +190,7 @@ Note: components live in `src/controlers/` (intentional misspelling).
 **Critical env vars on DO:**
 - `DJANGO_ENV=production`
 - `FRONTEND_URL=https://www.husfjelag.is` (used in OIDC redirect back to frontend)
-- `KENNI_REDIRECT_URI=https://api.husfjelag.is/auth/callback`
+- `OIDC_REDIRECT_URI=https://api.husfjelag.is/auth/callback`
 - `CORS_ALLOWED_ORIGINS=https://www.husfjelag.is,https://husfjelag.vercel.app` (HTTPS, comma-separated, no trailing slash)
 - `ALLOWED_HOSTS=api.husfjelag.is`
 
@@ -243,5 +246,5 @@ Note: components live in `src/controlers/` (intentional misspelling).
 ## Icelandic Domain Notes
 
 - **Kennitala** — 10-digit national ID (formatted as `XXXXXX-XXXX`; hyphens stripped before use)
-- **Kenni** — Icelandic national identity provider (OIDC), used for login
-- **Auðkennisappið** — the app users authenticate with via Kenni
+- **id.husfjelag.is** — Húsfjelag's own OIDC identity provider, used for login (replaced Kenni on 2026-07-15)
+- **Auðkennisappið** — the app users authenticate with (eID) during the id.husfjelag.is login flow
