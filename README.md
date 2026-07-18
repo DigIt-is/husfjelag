@@ -103,7 +103,7 @@ poetry install --no-root
 
 # Configure environment
 cp .env.example .env
-# Edit .env — set DATABASE_URL, REDIS_URL, KENNI_*, etc.
+# Edit .env — set DATABASE_URL, REDIS_URL, OIDC_*, etc.
 # Secrets (BUNADARSKILRIKI etc.) come from Doppler, not .env
 
 # Set up the database
