@@ -226,4 +226,14 @@ isb_claim_account = CharField(max_length=32, blank=True)   # claimant collection
 - **OPEN — `StofnaKrofu` request wrapping:** confirm whether zeep expects a single complex `krafa` parameter or flattened fields (finalized when Task 8 is implemented against the live WSDL).
 - **OPEN — claim account `reikningsnumer`:** whether the account's own number must be sent (optional `Audkenni` field) or is implied by `Bankanumer`/`Hofudbok`; confirm against a real test claim.
 - **OPEN — DigitalOcean deploy** of `xmlsec` wheel (spike Step 4, still pending).
-- **OPEN — `sync_claim_statuses` task:** the Landsbankinn-only `_get` bulk probe means ISB claim-status refresh isn't wired into that Celery task yet (per-claim `get_claim_status` exists); revisit.
+
+## Post-implementation follow-ups (from final whole-branch review — non-blocking)
+
+Live-verified: transaction **sync** (`SaekjaReikningsyfirlit`) and claim **creation** (`StofnaKrofu`) both accepted by the sandbox. The following are on the **not-yet-live-verified claim-retrieval path** and should be closed before ISB claim retrieval is enabled in production:
+
+1. **`list_claims`/`fetch_incoming_claims` shape + semantics** — ISB returns `{payer_kennitala, due_date, amount, status, reference}`; Landsbankinn's `IncomingClaimsView` expects `{id, claimant_name, due_date, amount, is_overdue, collection_status, bill_number, description}`, so the shared UI shows blanks for ISB. Also semantically inverted: ISB `list_claims` queries `kennitalaKrofuhafa` (claims the association *issued*) vs Landsbankinn `payorNationalId` (claims it *owes*). **Needs a design decision** on what ISB "incoming claims" should represent, then normalize to one shape.
+2. **`BankStatusView` for ISB** — `configured` is row-existence (should require ISB fields present); `last_sync_at`/`last_sync_ok` filter `http_method="GET"` but ISB `BankApiAuditLog` rows are `POST`, so the ISB status indicator never lights up after a successful sync.
+3. **`sync_claim_statuses` scheduled task** — still Landsbankinn-only (`get_api_key()` guard + `_get` bulk probe); ISB per-claim `get_claim_status` exists but isn't driven by the beat task.
+4. **WSDL caching** — `isb_soap._client` builds a fresh `zeep.Client` per call, re-fetching the WSDL over the network each time; vendor/cache before high call volume.
+
+Deferred Minors (final review triaged all as OK-to-defer): stale `test_cert.py` docstring; `load_pem` cert-only-PFX `AttributeError`; `Nidurfellingardagur` +4y leap-year edge (inherited from `landsbankinn.py`); `status="UNPAID"` literal vs enum; create-claim error log says "Landsbankinn" for ISB faults; `BankSettingsPage.js` raw `<Chip>` vs `StatusChip`.
