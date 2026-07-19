@@ -133,6 +133,13 @@ BANK_LANDSBANKINN_API_BASE = env(
 )
 BANK_LANDSBANKINN_EMAIL = env("BANK_LANDSBANKINN_EMAIL", default="")
 
+BANK_ISLANDSBANKI_BASE = env("BANK_ISLANDSBANKI_BASE", default="https://ws-test.isb.is/adgerdirv1/")
+BANK_ISLANDSBANKI_WS_BASE = env("BANK_ISLANDSBANKI_WS_BASE", default="https://ws-test.isb.is/adgerdirv1/")  # .asmx service host (test vs ws.isb.is prod)
+BANK_ISLANDSBANKI_YFIRLIT_WSDL = env("BANK_ISLANDSBANKI_YFIRLIT_WSDL", default=BANK_ISLANDSBANKI_BASE + "wsdl/yfirlit.wsdl")
+BANK_ISLANDSBANKI_KROFUR_WSDL  = env("BANK_ISLANDSBANKI_KROFUR_WSDL",  default=BANK_ISLANDSBANKI_BASE + "wsdl/krofur.wsdl")
+BANK_ISLANDSBANKI_YFIRLIT_ENDPOINT = env("BANK_ISLANDSBANKI_YFIRLIT_ENDPOINT", default=BANK_ISLANDSBANKI_WS_BASE + "yfirlit.asmx")
+BANK_ISLANDSBANKI_KROFUR_ENDPOINT  = env("BANK_ISLANDSBANKI_KROFUR_ENDPOINT",  default=BANK_ISLANDSBANKI_WS_BASE + "krofur.asmx")
+
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3010")
 
 # Email — Resend (transactional email; event reminders). When RESEND_API_KEY is
