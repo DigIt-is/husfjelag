@@ -17,6 +17,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 _CACHE: tuple[bytes, str] | None = None
+_PEM_CACHE: tuple[bytes, bytes] | None = None
 
 
 def load() -> tuple[bytes, str]:
@@ -75,7 +76,29 @@ def get_expiry() -> datetime:
     return cert.not_valid_after.replace(tzinfo=timezone.utc)
 
 
+def load_pem() -> tuple[bytes, bytes]:
+    """
+    Return (key_pem, cert_pem) extracted from the shared BUNADARSKILRIKI PFX,
+    for XML message signing.
+    """
+    global _PEM_CACHE
+    if _PEM_CACHE is not None:
+        return _PEM_CACHE
+
+    pfx_bytes, pwd = load()
+
+    from cryptography.hazmat.primitives.serialization import (
+        pkcs12, Encoding, PrivateFormat, NoEncryption,
+    )
+    key, crt, _ = pkcs12.load_key_and_certificates(pfx_bytes, pwd.encode())
+    key_pem = key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+    cert_pem = crt.public_bytes(Encoding.PEM)
+    _PEM_CACHE = (key_pem, cert_pem)
+    return _PEM_CACHE
+
+
 def clear_cache() -> None:
     """Reset the in-process cache (used in tests)."""
-    global _CACHE
+    global _CACHE, _PEM_CACHE
     _CACHE = None
+    _PEM_CACHE = None

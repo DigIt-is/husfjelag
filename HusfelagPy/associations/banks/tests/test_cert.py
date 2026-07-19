@@ -16,6 +16,44 @@ def _b64(data: bytes = b"fake-pfx-data") -> str:
     return base64.b64encode(data).decode()
 
 
+@pytest.fixture
+def valid_pfx_b64_and_pwd():
+    """
+    Build a real self-signed PFX (key + cert) in memory so tests that need to
+    parse an actual PKCS#12 (e.g. load_pem()) don't have to mock pkcs12 internals.
+    """
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives.serialization import pkcs12
+    from cryptography.x509.oid import NameOID
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name(
+        [x509.NameAttribute(NameOID.COMMON_NAME, "test.husfjelag.is")]
+    )
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.now(tz=timezone.utc) - timedelta(days=1))
+        .not_valid_after(datetime.now(tz=timezone.utc) + timedelta(days=365))
+        .sign(key, hashes.SHA256())
+    )
+
+    pwd = "secret"
+    pfx_bytes = pkcs12.serialize_key_and_certificates(
+        name=b"test",
+        key=key,
+        cert=cert,
+        cas=None,
+        encryption_algorithm=serialization.BestAvailableEncryption(pwd.encode()),
+    )
+    return base64.b64encode(pfx_bytes).decode(), pwd
+
+
 @pytest.fixture(autouse=True)
 def clear_cert_cache():
     """Reset the module-level cache between tests."""
@@ -154,3 +192,14 @@ def test_get_expiry_warning_threshold(settings):
 
     days_remaining = (expiry - datetime.now(tz=timezone.utc)).days
     assert days_remaining < 30
+
+
+def test_load_pem_returns_key_and_cert(monkeypatch, valid_pfx_b64_and_pwd):
+    from associations.banks import cert as cert_module
+    cert_module.clear_cache()
+    b64, pwd = valid_pfx_b64_and_pwd
+    monkeypatch.setattr(cert_module.settings, "BUNADARSKILRIKI", b64, raising=False)
+    monkeypatch.setattr(cert_module.settings, "BUNADARSKILRIKI_PWD", pwd, raising=False)
+    key_pem, cert_pem = cert_module.load_pem()
+    assert b"PRIVATE KEY" in key_pem
+    assert b"BEGIN CERTIFICATE" in cert_pem
