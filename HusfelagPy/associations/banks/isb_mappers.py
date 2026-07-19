@@ -27,6 +27,28 @@ def _looks_like_kennitala(s: str) -> bool:
     return bool(s) and s.isdigit() and len(s) == 10
 
 
+def build_claim_key(ssn: str, account: str, due_date) -> str:
+    return f"{ssn}:{account}:{_to_date(due_date).isoformat()}"
+
+
+def parse_claim_key(key: str) -> tuple:
+    ssn, account, due = key.split(":")
+    return ssn, account, _to_date(due)
+
+
+_PAID = {"greidd", "greitt", "paid"}
+_CANCELLED = {"felld", "afturkolluð", "afturkollud", "cancelled"}
+
+
+def map_claim_state_to_status(raw: str) -> str:
+    r = (raw or "").strip().lower()
+    if r in _PAID:
+        return "PAID"
+    if r in _CANCELLED:
+        return "CANCELLED"
+    return "UNPAID"
+
+
 def map_faersla_to_transaction_fields(faersla: dict, account_number: str) -> dict:
     booking = _to_date(faersla["Hreyfingardagur"])
     amount = Decimal(str(faersla["Upphaed"]))

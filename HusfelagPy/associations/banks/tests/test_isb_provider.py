@@ -38,3 +38,22 @@ def test_discover_and_sync_accounts_validates_connected_accounts():
         result = IslandsbankiProvider().discover_and_sync_accounts(a, bs)
 
     assert result == {"created": 0, "connected": 1, "disconnected": 0}
+
+
+@pytest.mark.django_db
+def test_get_claim_status_reconstructs_key():
+    a = Association.objects.create(ssn="1000000001", name="I", address="A", postal_code="101", city="Rvk")
+    bs = AssociationBankSettings.objects.create(association=a, bank="islandsbanki", isb_username="u")
+    with patch("associations.banks.islandsbanki.isb_soap.invoke", return_value={"Stada": "greidd"}) as inv:
+        out = IslandsbankiProvider().get_claim_status("1000000001:0133-66-000001:2026-07-31", bs)
+    assert out == "paid"
+    assert inv.call_args.kwargs["kennitalaKrofuhafa"] == "1000000001"
+
+@pytest.mark.django_db
+def test_list_claims_normalizes_rows():
+    a = Association.objects.create(ssn="1000000002", name="I", address="A", postal_code="101", city="Rvk")
+    bs = AssociationBankSettings.objects.create(association=a, bank="islandsbanki", isb_username="u")
+    rows = [{"KennitalaGreidanda": "2345678901", "Gjalddagi": "2026-07-31T00:00:00", "Upphaed": "1000.00", "Stada": "ógreidd", "Tilvisun": "ref"}]
+    with patch("associations.banks.islandsbanki.isb_soap.invoke", return_value=rows):
+        out = IslandsbankiProvider().list_claims(a, bs)
+    assert out[0]["amount"] == 1000.0 and out[0]["status"] == "UNPAID" and out[0]["payer_kennitala"] == "2345678901"

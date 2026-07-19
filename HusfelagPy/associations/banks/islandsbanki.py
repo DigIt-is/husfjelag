@@ -1,5 +1,4 @@
 from datetime import date
-from decimal import Decimal
 from associations.banks.provider_base import BankProvider
 from associations.banks import isb_soap
 from associations.banks import isb_mappers
@@ -42,10 +41,37 @@ class IslandsbankiProvider(BankProvider):
         raise NotImplementedError("Íslandsbanki: implemented in a later task")
 
     def get_claim_status(self, claim_id: str, settings) -> str:
-        raise NotImplementedError("Íslandsbanki: implemented in a later task")
+        ssn, account, due = isb_mappers.parse_claim_key(claim_id)
+        result = isb_soap.invoke(
+            settings, "krofur", "SaekjaKrofu",
+            kennitalaKrofuhafa=ssn, reikningur=account, gjalddagi=due.isoformat() + "T00:00:00",
+        ) or {}
+        return isb_mappers.map_claim_state_to_status(result.get("Stada", "")).lower()
 
     def list_claims(self, association, settings, **filters) -> list[dict]:
-        raise NotImplementedError("Íslandsbanki: implemented in a later task")
+        # SaekjaKrofur (per krofur.wsdl) requires gjalddagiFra/gjalddagiTil/astand/faerslaFra/faerslaTil
+        # in addition to kennitalaKrofuhafa; default to a wide window covering "all claims" unless overridden.
+        kwargs = {
+            "kennitalaKrofuhafa": association.ssn,
+            "gjalddagiFra": filters.get("gjalddagi_fra", date(2000, 1, 1)).isoformat() + "T00:00:00",
+            "gjalddagiTil": filters.get("gjalddagi_til", date(2100, 1, 1)).isoformat() + "T00:00:00",
+            "astand": filters.get("astand", "ALLAR_KROFUR"),
+            "faerslaFra": filters.get("faerslaFra", 0),
+            "faerslaTil": filters.get("faerslaTil", 0),
+        }
+        rows = isb_soap.invoke(settings, "krofur", "SaekjaKrofur", **kwargs) or []
+        out = []
+        for c in rows:
+            out.append({
+                "payer_kennitala": str(c.get("KennitalaGreidanda") or ""),
+                "due_date": str(c.get("Gjalddagi") or "")[:10],
+                "amount": float(c.get("Upphaed") or 0),
+                "status": isb_mappers.map_claim_state_to_status(c.get("Stada", "")),
+                "reference": str(c.get("Tilvisun") or ""),
+            })
+        return out
 
     def fetch_incoming_claims(self, association, settings, due_date_from: date) -> list[dict]:
-        raise NotImplementedError("Íslandsbanki: implemented in a later task")
+        # Íslandsbanki: claims the association owes are queried the same way, filtered client-side by due date.
+        return [c for c in self.list_claims(association, settings)
+                if c["due_date"] and c["due_date"] >= due_date_from.isoformat()]

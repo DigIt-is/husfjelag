@@ -24,3 +24,15 @@ def test_map_faersla_to_transaction_fields():
     assert out["payer_kennitala"] == "1234567890"     # 10 digits → treated as kennitala
     assert "Millifærsla" in out["description"]
     assert out["external_id"] == m.compute_external_id("0133-26-000123", date(2026,7,1), Decimal("1000.00"), "1234567890", "B1")
+
+def test_claim_key_roundtrip():
+    k = m.build_claim_key("1000000000", "0133-66-000001", date(2026,7,31))
+    assert k == "1000000000:0133-66-000001:2026-07-31"
+    ssn, acc, due = m.parse_claim_key(k)
+    assert (ssn, acc, due) == ("1000000000", "0133-66-000001", date(2026,7,31))
+
+def test_map_claim_state():
+    assert m.map_claim_state_to_status("greidd") == "PAID"
+    assert m.map_claim_state_to_status("ógreidd") == "UNPAID"
+    assert m.map_claim_state_to_status("felld") == "CANCELLED"
+    assert m.map_claim_state_to_status("eitthvað") == "UNPAID"
