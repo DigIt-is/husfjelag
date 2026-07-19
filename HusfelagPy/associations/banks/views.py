@@ -215,6 +215,9 @@ class AssociationBankSettingsView(APIView):
             "api_key_set": bool(bs.api_key),
             "template_id": bs.template_id,
             "claim_mode": bs.claim_mode,
+            "isb_username": bs.isb_username,
+            "isb_password_set": bool(bs.isb_password),
+            "isb_claim_account": bs.isb_claim_account,
             "last_sync_at": bs.last_sync_at.isoformat() if bs.last_sync_at else None,
             "updated_at": bs.updated_at.isoformat(),
         })
@@ -257,6 +260,16 @@ class AssociationBankSettingsView(APIView):
             bs.set_api_key(request.data["api_key"].strip())
             bs.save(update_fields=["api_key"])
 
+        if "isb_username" in request.data:
+            bs.isb_username = request.data["isb_username"].strip()
+        if "isb_claim_account" in request.data:
+            bs.isb_claim_account = request.data["isb_claim_account"].strip()
+        if any(k in request.data for k in ("isb_username", "isb_claim_account")):
+            bs.save(update_fields=["isb_username", "isb_claim_account"])
+        if "isb_password" in request.data:
+            bs.set_isb_password(request.data["isb_password"].strip())
+            bs.save(update_fields=["isb_password"])
+
         # Kick off a sync whenever the API key is set or updated
         if "api_key" in request.data and request.data["api_key"].strip():
             try:
@@ -271,6 +284,9 @@ class AssociationBankSettingsView(APIView):
             "api_key_set": bool(bs.api_key),
             "template_id": bs.template_id,
             "claim_mode": bs.claim_mode,
+            "isb_username": bs.isb_username,
+            "isb_password_set": bool(bs.isb_password),
+            "isb_claim_account": bs.isb_claim_account,
             "last_sync_at": bs.last_sync_at.isoformat() if bs.last_sync_at else None,
             "updated_at": bs.updated_at.isoformat(),
         })

@@ -67,3 +67,27 @@ def test_post_settings_updates_existing(chair_client, association, chair_access)
     )
     assert resp.status_code == 200
     assert resp.json()["template_id"] == "TPL-456"
+
+
+@pytest.mark.django_db
+def test_post_islandsbanki_settings_sets_creds(chair_client, association, chair_access):
+    resp = chair_client.post(
+        f"/associations/{association.id}/bank/settings",
+        data=json.dumps({
+            "bank": "islandsbanki",
+            "isb_username": "svc",
+            "isb_password": "pw",
+            "isb_claim_account": "0133-66-000001",
+        }),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    from associations.models import AssociationBankSettings
+    bs = AssociationBankSettings.objects.get(association=association)
+    assert bs.bank == "islandsbanki" and bs.isb_username == "svc" and bs.isb_claim_account == "0133-66-000001"
+    assert bs.get_isb_password() == "pw"
+    data = resp.json()
+    assert "isb_password" not in data          # never echoed back
+    assert data["isb_username"] == "svc"
+    assert data["isb_password_set"] is True
+    assert data["isb_claim_account"] == "0133-66-000001"
