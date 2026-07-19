@@ -1032,10 +1032,12 @@ git commit -m "feat: Íslandsbanki claim retrieval (SaekjaKrofu/SaekjaKrofur)"
 - Modify: `associations/banks/islandsbanki.py`
 - Modify: `associations/banks/tests/test_isb_mappers.py`, `test_isb_provider.py`
 
+**GROUNDED AGAINST THE REAL `krofur.wsdl`:** `StofnaKrofu` takes a `Krafa` complexType with **PascalCase** fields. The **caller supplies `Krofunumer`** (int) — the bank does NOT mint it; **we use `Collection.id`** (business decision). `Hofudbok` is always `66`; `Bankanumer` is the bank branch (first 4 digits of `isb_claim_account`). Many fee/interest/discount fields are `minOccurs=1` (required) and must be present, zeroed. The **response body is empty** — success = no SOAP fault. Claim identity is `Bankanumer:Hofudbok:Krofunumer:Gjalddagi` (matches Task 7's `build_claim_key`).
+
 **Interfaces:**
 - Produces:
-  - `isb_mappers.build_stofnakrofu_payload(collection, settings) -> dict` — kwargs for the `StofnaKrofu` operation.
-  - `IslandsbankiProvider.create_claim(collection, settings) -> dict` — invokes `StofnaKrofu`, persists a `BankClaim` with `claim_id` = composite claim key, returns `{"claim_id": <key>, "raw": <response>}`.
+  - `isb_mappers.build_stofnakrofu_payload(collection, settings) -> dict` — the `Krafa` field dict (PascalCase keys) for `StofnaKrofu`.
+  - `IslandsbankiProvider.create_claim(collection, settings) -> dict` — invokes `StofnaKrofu`, persists a `BankClaim` with `claim_id` = `build_claim_key(Bankanumer, Hofudbok, Krofunumer, Gjalddagi)`, returns `{"claim_id": <key>, "raw": <response>}`.
 
 - [ ] **Step 1: Write failing payload test**
 
@@ -1048,6 +1050,7 @@ class _Budget:
     association = _Assoc()
 class _Payer: kennitala = "2345678901"
 class _Coll:
+    id = 4567
     month = 7
     amount_total = Decimal("15000.00")
     budget = _Budget()
@@ -1056,12 +1059,20 @@ class _Settings: isb_claim_account = "0133-66-000001"
 
 def test_build_stofnakrofu_payload():
     p = m.build_stofnakrofu_payload(_Coll(), _Settings())
-    assert p["kennitalaKrofuhafa"] == "1000000000"
-    assert p["kennitalaGreidanda"] == "2345678901"
-    assert p["upphaed"] == 15000.0
-    assert p["gjalddagi"].startswith("2026-07-31")
-    assert p["reikningur"] == "0133-66-000001"
-    assert "07/2026" in p["tilvisun"]
+    assert p["KennitalaKrofuhafa"] == "1000000000"
+    assert p["KennitalaGreidanda"] == "2345678901"
+    assert p["Bankanumer"] == 133          # first 4 digits of the claim account
+    assert p["Hofudbok"] == 66             # claims ledger
+    assert p["Krofunumer"] == 4567         # == Collection.id
+    assert p["Upphaed"] == 15000.0
+    assert p["Gjalddagi"].startswith("2026-07-31")
+    assert p["Eindagi"].startswith("2026-07-31")
+    assert p["Nidurfellingardagur"].startswith("2030-07-31")   # gjalddagi + 4y
+    assert len(p["Tilvisun"]) <= 16                              # Tilvisun ≤ 16 chars
+    # all required fee/interest/discount fields present and zeroed:
+    for k in ("TilkynningarOgGreidslugjald1", "Vanskilagjald1", "Drattavaxtaprosenta",
+              "Afslattur1", "AnnarKostnadur", "Gengisbanki"):
+        assert p[k] == 0
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1071,7 +1082,7 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement `build_stofnakrofu_payload`**
 
-Add to `isb_mappers.py`:
+Add to `isb_mappers.py` (reuse the existing `parse_account_number`, `_to_date`):
 
 ```python
 from calendar import monthrange
@@ -1080,45 +1091,61 @@ def _last_day_of_month(year: int, month: int) -> date:
     return date(year, month, monthrange(year, month)[1])
 
 def build_stofnakrofu_payload(collection, settings) -> dict:
+    banki, _hofudbok, _reikn = parse_account_number(settings.isb_claim_account)
     due = _last_day_of_month(collection.budget.year, collection.month)
+    cancel = date(due.year + 4, due.month, due.day)
     month_label = f"{collection.month:02d}/{collection.budget.year}"
     return {
-        "kennitalaKrofuhafa": collection.budget.association.ssn,
-        "kennitalaGreidanda": collection.payer.kennitala,
-        "reikningur": settings.isb_claim_account,
-        "upphaed": float(collection.amount_total),
-        "gjalddagi": due.isoformat() + "T00:00:00",
-        "eindagi": due.isoformat() + "T00:00:00",
-        "tilvisun": f"Húsfélagsgjald {month_label}",
-        # fees / interest / discount left at bank defaults (zeroed), mirroring Landsbankinn
+        "KennitalaKrofuhafa": collection.budget.association.ssn,
+        "KennitalaGreidanda": collection.payer.kennitala,
+        "Bankanumer": banki,
+        "Hofudbok": 66,                          # claims ledger (always 66)
+        "Krofunumer": collection.id,             # caller-assigned (business decision: Collection.id)
+        "Upphaed": float(collection.amount_total),
+        "Gjalddagi": due.isoformat() + "T00:00:00",
+        "Eindagi": due.isoformat() + "T00:00:00",
+        "Nidurfellingardagur": cancel.isoformat() + "T00:00:00",
+        "Tilvisun": f"HG {month_label}"[:16],    # ≤16 chars; full label goes in a note field
+        # required fee/interest/discount fields — all zeroed (mirror Landsbankinn's no-fees claim)
+        "TilkynningarOgGreidslugjald1": 0, "TilkynningarOgGreidslugjald2": 0,
+        "Vanskilagjald1": 0, "Vanskilagjald2": 0,
+        "DagafjoldiVanskilagjalds1": 0, "DagafjoldiVanskilagjalds2": 0,
+        "AnnarKostnadur": 0, "AnnarVanskilakostnadur": 0,
+        "Drattavaxtaprosenta": 0,
+        "Afslattur1": 0, "Afslattur2": 0,
+        "DagafjoldiAfslattar1": 0, "DagafjoldiAfslattar2": 0,
+        "Gengisbanki": 0,
     }
 ```
+
+> **Confirm at implementation:** (a) the exact `StofnaKrofu` request wrapping — whether zeep expects a single complex param (e.g. `StofnaKrofu(krafa=<dict>)`) or flattened fields — against `https://ws-test.isb.is/adgerdirv1/wsdl/krofur.wsdl`, exactly as the prior task confirmed the `SaekjaKrofur` fields; adjust the `create_claim` invoke call accordingly. (b) Whether the claim account's `reikningsnumer` must be sent (the optional `Audkenni` field) — leave it out unless a real test claim requires it (spec Open item).
 
 - [ ] **Step 4: Write failing provider test (isb_soap mocked)**
 
 ```python
 # append to test_isb_provider.py
 from decimal import Decimal
-from datetime import datetime, timezone
 @pytest.mark.django_db
 def test_create_claim_persists_bankclaim(django_user_model):
-    from associations.models import Budget, Apartment, ApartmentOwnership, Collection, BankClaim
+    from associations.models import Budget, Apartment, Collection, BankClaim
     a = Association.objects.create(ssn="1000000000", name="I", address="A", postal_code="101", city="Rvk")
     bs = AssociationBankSettings.objects.create(association=a, bank="islandsbanki", isb_username="u", isb_claim_account="0133-66-000001")
     payer = django_user_model.objects.create(kennitala="2345678901", name="Payer")
     budget = Budget.objects.create(association=a, year=2026)          # adjust to real Budget required fields
-    apt = Apartment.objects.create(association=a, anr="01", fnr="F1")
+    apt = Apartment.objects.create(association=a, anr="01", fnr="F1") # adjust to real Apartment required fields
     coll = Collection.objects.create(budget=budget, apartment=apt, payer=payer, month=7, amount_total=Decimal("15000.00"))
-    with patch("associations.banks.islandsbanki.isb_soap.invoke", return_value={"ok": True}) as inv:
+    with patch("associations.banks.islandsbanki.isb_soap.invoke", return_value=None) as inv:
         out = IslandsbankiProvider().create_claim(coll, bs)
     assert inv.call_args.args[1] == "krofur" and inv.call_args.args[2] == "StofnaKrofu"
     bc = BankClaim.objects.get(collection=coll)
-    assert bc.claim_id == "1000000000:0133-66-000001:2026-07-31"
+    expected_key = f"133:66:{coll.id}:2026-07-31"
+    assert bc.claim_id == expected_key
     assert bc.payor_national_id == "2345678901" and bc.amount == Decimal("15000.00")
-    assert out["claim_id"] == bc.claim_id
+    assert bc.due_date.isoformat() == "2026-07-31"
+    assert out["claim_id"] == expected_key
 ```
 
-(Adjust `Budget`/`Apartment`/`Collection` creation to the models' actual required fields — check `associations/models.py` before running.)
+(Adjust `Budget`/`Apartment`/`Collection` creation to the models' actual required fields — read `associations/models.py` first.)
 
 - [ ] **Step 5: Run test to verify it fails**
 
@@ -1127,24 +1154,25 @@ Expected: FAIL (`NotImplementedError`).
 
 - [ ] **Step 6: Implement `create_claim`**
 
-In `islandsbanki.py`:
+In `islandsbanki.py` (StofnaKrofu returns an empty body — success = no SOAP fault raised by `isb_soap.invoke`):
 
 ```python
     def create_claim(self, collection, settings) -> dict:
         from associations.models import BankClaim
         from django.utils.timezone import now
         payload = isb_mappers.build_stofnakrofu_payload(collection, settings)
+        # Confirm the request wrapping against the WSDL (single `krafa` complex param vs flattened).
         response = isb_soap.invoke(settings, "krofur", "StofnaKrofu", **payload)
         claim_key = isb_mappers.build_claim_key(
-            payload["kennitalaKrofuhafa"], payload["reikningur"], payload["gjalddagi"][:10]
+            payload["Bankanumer"], payload["Hofudbok"], payload["Krofunumer"], payload["Gjalddagi"][:10]
         )
         BankClaim.objects.update_or_create(
             collection=collection,
             defaults={
                 "claim_id": claim_key,
-                "payor_national_id": payload["kennitalaGreidanda"],
+                "payor_national_id": payload["KennitalaGreidanda"],
                 "amount": collection.amount_total,
-                "due_date": isb_mappers.parse_claim_key(claim_key)[2],
+                "due_date": isb_mappers.parse_claim_key(claim_key)[3],   # (banki, hofudbok, krofunumer, DATE)
                 "status": "UNPAID",
                 "sent_at": now(),
             },
@@ -1154,8 +1182,8 @@ In `islandsbanki.py`:
 
 - [ ] **Step 7: Run tests, commit**
 
-Run: `doppler run -- poetry run pytest associations/banks/tests/ -v`
-Expected: PASS (entire bank suite).
+Run: `doppler run -- poetry run pytest associations/banks/tests/test_isb_mappers.py associations/banks/tests/test_isb_provider.py -v`
+Expected: PASS.
 
 ```bash
 git add associations/banks/isb_mappers.py associations/banks/islandsbanki.py associations/banks/tests/

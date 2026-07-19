@@ -125,7 +125,8 @@ isb_claim_account = CharField(max_length=32, blank=True)   # claimant collection
 - `account_number` "XXXX-XX-XXXXXX" is parsed into `banki` (XXXX) / `hofudbok` (XX) / `reikningsnumer` (XXXXXX) for `SaekjaReikningsyfirlit`. No new columns.
 
 ### `BankClaim` — no changes
-- Íslandsbanki has no single opaque claim ID; identity is the composite **ClaimKey** (`KennitalaKrofuhafa` + `Account` + `Gjalddagi`). Store it in `claim_id` (CharField(64)) as a delimited string (e.g. `"{ssn}:{account}:{yyyy-mm-dd}"`) so `get_claim_status` can reconstruct the key for `SaekjaKrofu`.
+- **CORRECTED against the real `krofur.wsdl`:** a claim's identity is `Bankanumer` + `Hofudbok`(=66) + `Krofunumer` (+ `Gjalddagi` for lookup) — **not** ssn/account/due-date. `SaekjaKrofu` is keyed by `banki`/`hofudbok`/`krofunumer`/`gjalddagi`. Store `claim_id` (CharField(64)) as `"{banki}:{hofudbok}:{krofunumer}:{yyyy-mm-dd}"` so `get_claim_status` reconstructs the `SaekjaKrofu` args.
+- **`Krofunumer` is caller-assigned** (the bank does not mint it). Business decision: use **`Collection.id`** as the `Krofunumer`.
 
 ### `BankApiAuditLog` — reused as-is
 - For SOAP: `endpoint` = operation name (e.g. `SaekjaReikningsyfirlit`), `http_method` = `"POST"`, `status_code` = `200` on success or the SOAP fault's mapped code on failure.
@@ -148,23 +149,26 @@ isb_claim_account = CharField(max_length=32, blank=True)   # claimant collection
 - **Dedup:** there is no bank-provided globally-unique transaction id. Compute a stable composite hash for `external_id` and dedup on it exactly as Landsbankinn dedups on `tx.id`. Document this clearly — two genuinely identical same-day transactions (same amount/reference/batch) would collide; acceptable, matches how a human reads a statement.
 - **Pagination:** `SaekjaReikningsyfirlit` supports `faerslaFra`/`faerslaTil` (entry range). Page through in blocks if the response is capped; otherwise a single call per date window.
 
-### Claims: `Collection` → `StofnaKrofu(Krafa)`
-| Krafa field | Source |
+### Claims: `Collection` → `StofnaKrofu(Krafa)` — CORRECTED against real `krofur.wsdl`
+| Krafa field (PascalCase) | Source |
 |---|---|
 | `KennitalaKrofuhafa` | `collection.budget.association.ssn` |
 | `KennitalaGreidanda` | `collection.payer.kennitala` |
+| `Bankanumer` | first 4 digits of `settings.isb_claim_account` |
+| `Hofudbok` | `66` (claims ledger, always) |
+| `Krofunumer` | `collection.id` (caller-assigned) |
 | `Upphaed` | `collection.amount_total` |
 | `Gjalddagi` | last day of `(budget.year, collection.month)` |
-| `Eindagi` | same as `Gjalddagi` (mirrors Landsbankinn) |
-| `Tilvisun` | `"Húsfélagsgjald MM/YYYY"` |
-| `Account` (ClaimKey) | `settings.isb_claim_account` |
-| fees / interest / discount | all zeroed (mirrors Landsbankinn `create_claim`) |
+| `Eindagi` | same as `Gjalddagi` |
+| `Nidurfellingardagur` | `Gjalddagi` + 4 years (required auto-cancel date) |
+| `Tilvisun` | short ref `"HG MM/YYYY"` (**≤16 chars** — WSDL limit) |
+| required fees/interest/discount (`TilkynningarOgGreidslugjald1/2`, `Vanskilagjald1/2`, `DagafjoldiVanskilagjalds1/2`, `AnnarKostnadur`, `AnnarVanskilakostnadur`, `Drattavaxtaprosenta`, `Afslattur1/2`, `DagafjoldiAfslattar1/2`, `Gengisbanki`) | all `0` (these are `minOccurs=1` — required) |
 
-- On success, persist a `BankClaim` with `claim_id` = composite ClaimKey string.
+- **`StofnaKrofu` response is empty** — success = no SOAP fault. On success, persist `BankClaim` with `claim_id` = `"{banki}:66:{collection.id}:{gjalddagi}"`.
 
 ### Retrieve: `SaekjaKrofu` / `SaekjaKrofur`
-- `get_claim_status(claim_id, settings)`: split the composite `claim_id`, call `SaekjaKrofu`, map the returned claim state → `BankClaimStatus` (`UNPAID` / `PAID` / `CANCELLED`).
-- `list_claims(association, settings, **filters)`: call `SaekjaKrofur` filtered by claimant SSN; normalize to the same dict shape `fetch_incoming_claims` returns today so the frontend is unchanged.
+- `get_claim_status(claim_id, settings)`: parse `claim_id` → `SaekjaKrofu(kennitalaKrofuhafa=assoc.ssn, banki, hofudbok, krofunumer, gjalddagi)`, map `Stada` → `BankClaimStatus`. State map: `GREIDD`→PAID, `NIÐURFELLD`→CANCELLED, `ÓGREIDD`/`MILLINNHEIMTA`/`LÖGFRÆÐIINNHEIMTA`/`VILLA`→UNPAID.
+- `list_claims(association, settings, **filters)`: `SaekjaKrofur` requires `kennitalaKrofuhafa` + `gjalddagiFra`/`gjalddagiTil`/`astand`/`faerslaFra`/`faerslaTil` (all mandatory); normalize rows to the same dict shape `fetch_incoming_claims` returns today.
 
 ---
 
@@ -216,6 +220,10 @@ isb_claim_account = CharField(max_length=32, blank=True)   # claimant collection
 
 ## Open Questions / Assumptions
 
-- Exact `banki` / `hofudbok` / `reikningsnumer` decomposition and the `StofnaKrofu` fee/interest/discount envelope will be finalized against the WSDL types and the test claims during Phase 2–4.
-- The `SaekjaReikningsyfirlit` pagination cap (whether `faerslaFra`/`faerslaTil` is mandatory or convenience) is confirmed in the spike.
-- The claimant claim account (`isb_claim_account`) format (whether it is the same XXXX-XX-XXXXXX form or a ledger-66 claim number) is confirmed against a real test claim.
+- **RESOLVED (WSDL-grounded):** `StofnaKrofu` requires the caller to supply `Krofunumer` → we use `Collection.id`; claim identity is `banki:hofudbok:krofunumer:gjalddagi`; the required fee/interest/discount fields are all zeroed; response is empty. State enum is `ÓGREIDD`/`GREIDD`/`NIÐURFELLD`/`MILLINNHEIMTA`/`LÖGFRÆÐIINNHEIMTA`/`VILLA`.
+- **OPEN — amount scaling:** `Upphaed` (statements) used as-is; confirm krónur vs aurar with the bank before go-live.
+- **OPEN — `Tilvisun` content:** truncated to ≤16 chars as `"HG MM/YYYY"`; confirm this is an acceptable payer-facing reference, and whether the full `"Húsfélagsgjald MM/YYYY"` should go in a `Athugasemdalina1` note field.
+- **OPEN — `StofnaKrofu` request wrapping:** confirm whether zeep expects a single complex `krafa` parameter or flattened fields (finalized when Task 8 is implemented against the live WSDL).
+- **OPEN — claim account `reikningsnumer`:** whether the account's own number must be sent (optional `Audkenni` field) or is implied by `Bankanumer`/`Hofudbok`; confirm against a real test claim.
+- **OPEN — DigitalOcean deploy** of `xmlsec` wheel (spike Step 4, still pending).
+- **OPEN — `sync_claim_statuses` task:** the Landsbankinn-only `_get` bulk probe means ISB claim-status refresh isn't wired into that Celery task yet (per-claim `get_claim_status` exists); revisit.
