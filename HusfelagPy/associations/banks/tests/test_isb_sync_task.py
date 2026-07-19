@@ -24,3 +24,12 @@ def test_sync_task_runs_discovery_for_isb_with_credentials():
     # It got past the credential guard and invoked discovery (did NOT return isb_credentials_missing)
     assert out.get("reason") != "isb_credentials_missing"
     gp.return_value.discover_and_sync_accounts.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_sync_task_skips_unsupported_bank():
+    from associations.banks.tasks import sync_transactions
+    a = Association.objects.create(ssn="1000000008", name="A", address="A", postal_code="101", city="Rvk")
+    AssociationBankSettings.objects.create(association=a, bank="arion")
+    out = sync_transactions(a.id)
+    assert out.get("reason") == "bank_not_supported"

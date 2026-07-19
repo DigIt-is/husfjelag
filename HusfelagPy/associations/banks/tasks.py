@@ -40,6 +40,8 @@ def sync_transactions(association_id: int) -> dict:
     elif bank_settings.bank == BankProvider.ISLANDSBANKI:
         if not (bank_settings.isb_username and bank_settings.isb_password):
             return {"skipped": True, "reason": "isb_credentials_missing"}
+    else:
+        return {"skipped": True, "reason": "bank_not_supported"}
 
     provider = get_provider(bank_settings)
 
