@@ -27,17 +27,19 @@ def _looks_like_kennitala(s: str) -> bool:
     return bool(s) and s.isdigit() and len(s) == 10
 
 
-def build_claim_key(ssn: str, account: str, due_date) -> str:
-    return f"{ssn}:{account}:{_to_date(due_date).isoformat()}"
+def build_claim_key(banki, hofudbok, krofunumer, gjalddagi) -> str:
+    return f"{int(banki)}:{int(hofudbok)}:{int(krofunumer)}:{_to_date(gjalddagi).isoformat()}"
 
 
 def parse_claim_key(key: str) -> tuple:
-    ssn, account, due = key.split(":")
-    return ssn, account, _to_date(due)
+    banki, hofudbok, krofunumer, gjalddagi = key.split(":")
+    return int(banki), int(hofudbok), int(krofunumer), _to_date(gjalddagi)
 
 
+# StadaKrofu enum (real, from krofur.wsdl): ÓGREIDD, GREIDD, NIÐURFELLD,
+# MILLINNHEIMTA, LÖGFRÆÐIINNHEIMTA, VILLA. Matched case-insensitively.
 _PAID = {"greidd", "greitt", "paid"}
-_CANCELLED = {"felld", "afturkolluð", "afturkollud", "cancelled"}
+_CANCELLED = {"niðurfelld", "nidurfelld", "felld", "afturkolluð", "afturkollud", "cancelled"}
 
 
 def map_claim_state_to_status(raw: str) -> str:
@@ -46,7 +48,7 @@ def map_claim_state_to_status(raw: str) -> str:
         return "PAID"
     if r in _CANCELLED:
         return "CANCELLED"
-    return "UNPAID"
+    return "UNPAID"   # ÓGREIDD / MILLINNHEIMTA / LÖGFRÆÐIINNHEIMTA / VILLA / anything else
 
 
 def map_faersla_to_transaction_fields(faersla: dict, account_number: str) -> dict:

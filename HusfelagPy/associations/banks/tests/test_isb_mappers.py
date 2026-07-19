@@ -26,13 +26,15 @@ def test_map_faersla_to_transaction_fields():
     assert out["external_id"] == m.compute_external_id("0133-26-000123", date(2026,7,1), Decimal("1000.00"), "1234567890", "B1")
 
 def test_claim_key_roundtrip():
-    k = m.build_claim_key("1000000000", "0133-66-000001", date(2026,7,31))
-    assert k == "1000000000:0133-66-000001:2026-07-31"
-    ssn, acc, due = m.parse_claim_key(k)
-    assert (ssn, acc, due) == ("1000000000", "0133-66-000001", date(2026,7,31))
+    k = m.build_claim_key(133, 66, 4567, date(2026, 7, 31))
+    assert k == "133:66:4567:2026-07-31"
+    banki, hofudbok, krofunumer, due = m.parse_claim_key(k)
+    assert (banki, hofudbok, krofunumer, due) == (133, 66, 4567, date(2026, 7, 31))
+
 
 def test_map_claim_state():
-    assert m.map_claim_state_to_status("greidd") == "PAID"
-    assert m.map_claim_state_to_status("ógreidd") == "UNPAID"
-    assert m.map_claim_state_to_status("felld") == "CANCELLED"
-    assert m.map_claim_state_to_status("eitthvað") == "UNPAID"
+    assert m.map_claim_state_to_status("GREIDD") == "PAID"
+    assert m.map_claim_state_to_status("ÓGREIDD") == "UNPAID"
+    assert m.map_claim_state_to_status("NIÐURFELLD") == "CANCELLED"
+    assert m.map_claim_state_to_status("MILLINNHEIMTA") == "UNPAID"
+    assert m.map_claim_state_to_status("VILLA") == "UNPAID"

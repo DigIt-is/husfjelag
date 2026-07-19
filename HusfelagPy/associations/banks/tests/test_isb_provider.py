@@ -44,10 +44,12 @@ def test_discover_and_sync_accounts_validates_connected_accounts():
 def test_get_claim_status_reconstructs_key():
     a = Association.objects.create(ssn="1000000001", name="I", address="A", postal_code="101", city="Rvk")
     bs = AssociationBankSettings.objects.create(association=a, bank="islandsbanki", isb_username="u")
-    with patch("associations.banks.islandsbanki.isb_soap.invoke", return_value={"Stada": "greidd"}) as inv:
-        out = IslandsbankiProvider().get_claim_status("1000000001:0133-66-000001:2026-07-31", bs)
+    with patch("associations.banks.islandsbanki.isb_soap.invoke", return_value={"Stada": "GREIDD"}) as inv:
+        out = IslandsbankiProvider().get_claim_status("133:66:4567:2026-07-31", bs)
     assert out == "paid"
-    assert inv.call_args.kwargs["kennitalaKrofuhafa"] == "1000000001"
+    assert inv.call_args.kwargs["banki"] == 133
+    assert inv.call_args.kwargs["hofudbok"] == 66
+    assert inv.call_args.kwargs["krofunumer"] == 4567
 
 @pytest.mark.django_db
 def test_list_claims_normalizes_rows():

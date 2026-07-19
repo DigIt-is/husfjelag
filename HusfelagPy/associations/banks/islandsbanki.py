@@ -40,11 +40,13 @@ class IslandsbankiProvider(BankProvider):
     def create_claim(self, collection, settings) -> dict:
         raise NotImplementedError("Íslandsbanki: implemented in a later task")
 
-    def get_claim_status(self, claim_id: str, settings) -> str:
-        ssn, account, due = isb_mappers.parse_claim_key(claim_id)
+    def get_claim_status(self, claim_id, settings) -> str:
+        banki, hofudbok, krofunumer, gjalddagi = isb_mappers.parse_claim_key(claim_id)
         result = isb_soap.invoke(
             settings, "krofur", "SaekjaKrofu",
-            kennitalaKrofuhafa=ssn, reikningur=account, gjalddagi=due.isoformat() + "T00:00:00",
+            kennitalaKrofuhafa=settings.association.ssn,
+            banki=banki, hofudbok=hofudbok, krofunumer=krofunumer,
+            gjalddagi=gjalddagi.isoformat() + "T00:00:00",
         ) or {}
         return isb_mappers.map_claim_state_to_status(result.get("Stada", "")).lower()
 
