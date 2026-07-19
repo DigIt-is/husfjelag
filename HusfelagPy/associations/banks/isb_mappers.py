@@ -1,4 +1,5 @@
 import hashlib
+from calendar import monthrange
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -49,6 +50,38 @@ def map_claim_state_to_status(raw: str) -> str:
     if r in _CANCELLED:
         return "CANCELLED"
     return "UNPAID"   # ÓGREIDD / MILLINNHEIMTA / LÖGFRÆÐIINNHEIMTA / VILLA / anything else
+
+
+def _last_day_of_month(year: int, month: int) -> date:
+    return date(year, month, monthrange(year, month)[1])
+
+
+def build_stofnakrofu_payload(collection, settings) -> dict:
+    banki, _hofudbok, _reikn = parse_account_number(settings.isb_claim_account)
+    due = _last_day_of_month(collection.budget.year, collection.month)
+    cancel = date(due.year + 4, due.month, due.day)
+    month_label = f"{collection.month:02d}/{collection.budget.year}"
+    return {
+        "KennitalaKrofuhafa": collection.budget.association.ssn,
+        "KennitalaGreidanda": collection.payer.kennitala,
+        "Bankanumer": banki,
+        "Hofudbok": 66,                          # claims ledger (always 66)
+        "Krofunumer": collection.id,             # caller-assigned (business decision: Collection.id)
+        "Upphaed": float(collection.amount_total),
+        "Gjalddagi": due.isoformat() + "T00:00:00",
+        "Eindagi": due.isoformat() + "T00:00:00",
+        "Nidurfellingardagur": cancel.isoformat() + "T00:00:00",
+        "Tilvisun": f"HG {month_label}"[:16],    # ≤16 chars; full label goes in a note field
+        # required fee/interest/discount fields — all zeroed (mirror Landsbankinn's no-fees claim)
+        "TilkynningarOgGreidslugjald1": 0, "TilkynningarOgGreidslugjald2": 0,
+        "Vanskilagjald1": 0, "Vanskilagjald2": 0,
+        "DagafjoldiVanskilagjalds1": 0, "DagafjoldiVanskilagjalds2": 0,
+        "AnnarKostnadur": 0, "AnnarVanskilakostnadur": 0,
+        "Drattavaxtaprosenta": 0,
+        "Afslattur1": 0, "Afslattur2": 0,
+        "DagafjoldiAfslattar1": 0, "DagafjoldiAfslattar2": 0,
+        "Gengisbanki": 0,
+    }
 
 
 def map_faersla_to_transaction_fields(faersla: dict, account_number: str) -> dict:

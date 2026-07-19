@@ -38,3 +38,34 @@ def test_map_claim_state():
     assert m.map_claim_state_to_status("NIÐURFELLD") == "CANCELLED"
     assert m.map_claim_state_to_status("MILLINNHEIMTA") == "UNPAID"
     assert m.map_claim_state_to_status("VILLA") == "UNPAID"
+
+
+class _Assoc: ssn = "1000000000"
+class _Budget:
+    year = 2026
+    association = _Assoc()
+class _Payer: kennitala = "2345678901"
+class _Coll:
+    id = 4567
+    month = 7
+    amount_total = Decimal("15000.00")
+    budget = _Budget()
+    payer = _Payer()
+class _Settings: isb_claim_account = "0133-66-000001"
+
+def test_build_stofnakrofu_payload():
+    p = m.build_stofnakrofu_payload(_Coll(), _Settings())
+    assert p["KennitalaKrofuhafa"] == "1000000000"
+    assert p["KennitalaGreidanda"] == "2345678901"
+    assert p["Bankanumer"] == 133          # first 4 digits of the claim account
+    assert p["Hofudbok"] == 66             # claims ledger
+    assert p["Krofunumer"] == 4567         # == Collection.id
+    assert p["Upphaed"] == 15000.0
+    assert p["Gjalddagi"].startswith("2026-07-31")
+    assert p["Eindagi"].startswith("2026-07-31")
+    assert p["Nidurfellingardagur"].startswith("2030-07-31")   # gjalddagi + 4y
+    assert len(p["Tilvisun"]) <= 16                              # Tilvisun ≤ 16 chars
+    # all required fee/interest/discount fields present and zeroed:
+    for k in ("TilkynningarOgGreidslugjald1", "Vanskilagjald1", "Drattavaxtaprosenta",
+              "Afslattur1", "AnnarKostnadur", "Gengisbanki"):
+        assert p[k] == 0
