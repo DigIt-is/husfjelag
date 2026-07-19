@@ -74,6 +74,17 @@ Operation endpoints (proprietary, `.asmx`): `yfirlit.asmx`, `krofur.asmx`.
 ### Risk — #1 to de-risk first
 `xmlsec` (python-xmlsec) needs native `libxmlsec1`. Modern releases ship self-contained manylinux wheels, so `pip install xmlsec` **should** work on DigitalOcean's buildpack without apt — but this is unverified for our deploy. **Phase 0 spike** signs one real `SaekjaReikningsyfirlit` against `ws-test.isb.is` and confirms it both runs locally and deploys on DO. Fallbacks, in order of preference: (a) `signxml` (pure-Python, over `lxml`+`cryptography`) injected through a custom zeep wsse plugin; (b) switch the DO backend to a Dockerfile deploy so system libs are installable.
 
+### Spike outcome (2026-07-19)
+**Signing approach: `zeep` + `xmlsec` (BinarySignature).** `poetry add zeep xmlsec` installed cleanly on macOS with **no libxmlsec1 build issues** (xmlsec 1.3.17 ships wheels); signxml fallback not needed. A WS-Security-signed `SaekjaReikningsyfirlit` was **accepted by the sandbox and returned real transactions**. Load-bearing findings for `isb_soap.py`:
+- **BinarySecurityToken must precede `<ds:Signature>`** in `<wsse:Security>`. zeep emits them in the wrong order and the .NET server rejects with `SecurityTokenUnavailable`. Fix: subclass `BinarySignature` and move the BST to first child **inside `apply()`** (an egress plugin can't — zeep signs after plugins run). Safe: only `soap:Body` is digested, so reordering header children doesn't break the signature.
+- **`WsseBundle` wrapper.** A list `wsse=[UsernameToken, BinarySignature]` signs fine but crashes on response (`'list' object has no attribute verify`). Wrap both handlers; `verify()` is a no-op (rely on TLS + fault inspection, not response-signature verification).
+- **Endpoint override is mandatory.** The WSDL's `<soap:address>` points at **production** `ws.isb.is` even when served from `ws-test.isb.is`. Drive the service host from config (`BANK_ISLANDSBANKI_WS_BASE`) and override the endpoint, or signed calls silently hit prod.
+- **Cert to disk:** prefer `MemorySignature` with in-memory PEM buffers (matches the project's "nothing to disk" cert policy); temp PEMs `0600` + cleanup is the fallback.
+- **Response fields** (`ReikningsyfirlitFaersla`): `Faerslulykill`, `Textalykill`, `Tilvisunarnumer`(nullable), `Vaxtadagur`(datetime), `Sedilnumer`(nullable), `Hreyfingardagur`(datetime), `Upphaed`(**Decimal**), `Innlausnarbanki`(int), `Bunkanumer`(nullable), `Stada`(Decimal running balance). Default algorithms (exc-c14n, rsa-sha1, sha1 digest, only Body referenced) accepted; no request `wsu:Timestamp` needed.
+- **Never log the outgoing envelope in prod** — it carries the UsernameToken password in cleartext.
+- **OPEN — amount scaling:** `Upphaed` came back as large `Decimal` values (e.g. `200018940`). Confirm with Íslandsbanki whether these are whole krónur or minor units (aurar, ÷100) and the sign convention **before** persisting to `Transaction`.
+- **STILL PENDING — DigitalOcean deploy verification** (spike Step 4): xmlsec installed locally on macOS; confirm the wheel installs on DO's Linux buildpack before go-live. Low residual risk (wheels are prebuilt), but unverified.
+
 ---
 
 ## Provider Dispatch (the refactor)

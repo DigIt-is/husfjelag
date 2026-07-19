@@ -38,3 +38,6 @@ ca-certificate.crt
 
 # Editor
 .vscode/
+
+# Throwaway spike scratch (Íslandsbanki signing)
+HusfelagPy/scratch/

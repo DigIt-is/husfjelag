@@ -110,12 +110,14 @@ Push a temporary branch to a DO preview (or run in the DO console): confirm `pip
 
 - [ ] **Step 5: Record the decision**
 
-Append a short "Signing approach: <xmlsec|signxml|docker>; key/cert passed as <files|buffers>" note to the spec's risk section and delete `scratch/isb_spike.py`. Keep `zeep` + the chosen signing dep in `pyproject.toml`.
+Append the "Signing approach" note to the spec's risk section. Keep `zeep` + the chosen signing dep in `pyproject.toml`. **Keep `scratch/isb_spike.py`** — it is the proven reference implementation Task 5 ports from; it is deleted at the end of Task 5, not here.
 
 ```bash
-git rm scratch/isb_spike.py 2>/dev/null; git add pyproject.toml poetry.lock docs/superpowers/specs/2026-07-19-islandsbanki-bank-integration-design.md
-git commit -m "chore: add zeep + chosen XML-signing dep; record spike outcome"
+git add pyproject.toml poetry.lock docs/superpowers/specs/2026-07-19-islandsbanki-bank-integration-design.md
+git commit -m "chore: add zeep + xmlsec; record signing spike outcome"
 ```
+
+> **SPIKE RESULT (2026-07-19): `zeep` + `xmlsec` (BinarySignature), accepted by the sandbox.** Deps already added. `scratch/isb_spike.py` contains the working `BinarySignatureTokenFirst` + `WsseBundle` classes — Task 5 ports them. DO-deploy verification (Step 4) is still pending and tracked separately; it does not block Tasks 1–4 (bank-agnostic refactor, no xmlsec import).
 
 ---
 
@@ -558,12 +560,15 @@ git commit -m "refactor: route bank views/tasks through provider dispatch"
 
 - [ ] **Step 1: Add settings**
 
-In `config/settings/base.py` near the `BANK_LANDSBANKINN_*` block:
+In `config/settings/base.py` near the `BANK_LANDSBANKINN_*` block. **Note the `WS_BASE` split** — the spike proved the WSDL's `<soap:address>` points at production, so the service endpoint host must be overridden from config separately from where the WSDL is fetched:
 
 ```python
 BANK_ISLANDSBANKI_BASE = env("BANK_ISLANDSBANKI_BASE", default="https://ws-test.isb.is/adgerdirv1/")
+BANK_ISLANDSBANKI_WS_BASE = env("BANK_ISLANDSBANKI_WS_BASE", default="https://ws-test.isb.is/adgerdirv1/")  # .asmx service host (test vs ws.isb.is prod)
 BANK_ISLANDSBANKI_YFIRLIT_WSDL = env("BANK_ISLANDSBANKI_YFIRLIT_WSDL", default=BANK_ISLANDSBANKI_BASE + "wsdl/yfirlit.wsdl")
 BANK_ISLANDSBANKI_KROFUR_WSDL  = env("BANK_ISLANDSBANKI_KROFUR_WSDL",  default=BANK_ISLANDSBANKI_BASE + "wsdl/krofur.wsdl")
+BANK_ISLANDSBANKI_YFIRLIT_ENDPOINT = env("BANK_ISLANDSBANKI_YFIRLIT_ENDPOINT", default=BANK_ISLANDSBANKI_WS_BASE + "yfirlit.asmx")
+BANK_ISLANDSBANKI_KROFUR_ENDPOINT  = env("BANK_ISLANDSBANKI_KROFUR_ENDPOINT",  default=BANK_ISLANDSBANKI_WS_BASE + "krofur.asmx")
 ```
 
 - [ ] **Step 2: Write failing tests for the pure mappers**
@@ -604,6 +609,8 @@ Run: `doppler run -- poetry run pytest associations/banks/tests/test_isb_mappers
 Expected: FAIL — module not defined.
 
 - [ ] **Step 4: Implement `isb_mappers.py`**
+
+> **Amount scaling (spec Open item):** `Upphaed` is used as-is (whole krónur assumption). The spike saw large `Decimal` values; **do not add any ÷100 scaling** until Íslandsbanki confirms whether the field is krónur or aurar. If confirmed as aurar, the single change is in `map_faersla_to_transaction_fields`.
 
 ```python
 # associations/banks/isb_mappers.py
@@ -654,51 +661,87 @@ def map_faersla_to_transaction_fields(faersla: dict, account_number: str) -> dic
     }
 ```
 
-- [ ] **Step 5: Implement `isb_soap.py` (signing per Task 0 decision)**
+- [ ] **Step 5: Implement `isb_soap.py` (port the spike-proven signing)**
+
+Port the `BinarySignatureTokenFirst` and `WsseBundle` classes verbatim from `scratch/isb_spike.py` (proven accepted by the sandbox) — do not reinvent them. The three load-bearing pieces: (1) BST reordered before `<ds:Signature>` inside `apply()`; (2) `WsseBundle` so a two-handler wsse doesn't crash on response; (3) **endpoint override** via `create_service` because the WSDL points at prod. Use in-memory PEM buffers (`MemorySignature`-style) to avoid writing key material to disk.
 
 ```python
 # associations/banks/isb_soap.py
-"""Signed, authenticated Íslandsbanki SOAP seam. Internals finalized by the Phase 0 spike."""
+"""Signed, authenticated Íslandsbanki SOAP seam. Signing proven by the Phase 0 spike."""
 import logging
-import tempfile
 from django.conf import settings as dj_settings
 from zeep import Client
 from zeep.helpers import serialize_object
 from zeep.wsse.username import UsernameToken
 from zeep.wsse.signature import BinarySignature
+from zeep.wsse import utils as wsse_utils
 
 from associations.banks import cert as cert_module
 
 logger = logging.getLogger(__name__)
 
-_WSDL = {
-    "yfirlit": lambda: dj_settings.BANK_ISLANDSBANKI_YFIRLIT_WSDL,
-    "krofur":  lambda: dj_settings.BANK_ISLANDSBANKI_KROFUR_WSDL,
+_SVC = {
+    "yfirlit": lambda: (dj_settings.BANK_ISLANDSBANKI_YFIRLIT_WSDL,
+                        dj_settings.BANK_ISLANDSBANKI_YFIRLIT_ENDPOINT,
+                        "{http://ws.isb.is}YfirlitWSSoap"),
+    "krofur":  lambda: (dj_settings.BANK_ISLANDSBANKI_KROFUR_WSDL,
+                        dj_settings.BANK_ISLANDSBANKI_KROFUR_ENDPOINT,
+                        "{http://ws.isb.is}KrofurWSSoap"),   # confirm binding QName against krofur.wsdl
 }
 
+_WSSE = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
 
-def _client(settings_obj, service: str) -> Client:
+
+class BinarySignatureTokenFirst(BinarySignature):
+    """zeep emits <ds:Signature> before the BinarySecurityToken; the .NET server rejects
+    that with SecurityTokenUnavailable. Move the BST to be the first child of <wsse:Security>
+    AFTER signing (only soap:Body is digested, so header reordering is signature-safe)."""
+    def apply(self, envelope, headers):
+        envelope, headers = super().apply(envelope, headers)
+        security = envelope.find(f".//{{{_WSSE}}}Security")
+        bst = security.find(f"{{{_WSSE}}}BinarySecurityToken") if security is not None else None
+        if security is not None and bst is not None:
+            security.remove(bst)
+            security.insert(0, bst)
+        return envelope, headers
+
+
+class WsseBundle:
+    """Chain UsernameToken + signature on apply; no-op verify (rely on TLS + fault inspection,
+    not response-signature verification)."""
+    def __init__(self, *handlers):
+        self.handlers = handlers
+    def apply(self, envelope, headers):
+        for h in self.handlers:
+            envelope, headers = h.apply(envelope, headers)
+        return envelope, headers
+    def verify(self, envelope):
+        return envelope
+
+
+def _client(settings_obj, service: str) -> tuple[Client, str, str]:
+    wsdl, endpoint, binding = _SVC[service]()
     key_pem, cert_pem = cert_module.load_pem()
-    kf = tempfile.NamedTemporaryFile(suffix=".pem", delete=False); kf.write(key_pem); kf.close()
-    cf = tempfile.NamedTemporaryFile(suffix=".pem", delete=False); cf.write(cert_pem); cf.close()
-    wsse = [
+    wsse = WsseBundle(
         UsernameToken(settings_obj.isb_username, settings_obj.get_isb_password()),
-        BinarySignature(kf.name, cf.name),   # swap for signxml plugin if Task 0 chose fallback A
-    ]
-    return Client(_WSDL[service](), wsse=wsse)
+        BinarySignatureTokenFirst(key_pem, cert_pem),   # MemorySignature-style: PEM buffers, nothing to disk
+    )
+    return Client(wsdl, wsse=wsse), endpoint, binding
 
 
 def invoke(settings_obj, service: str, operation: str, **kwargs):
-    """Call `operation` on the `service` SOAP endpoint; audit-log; return serialized dict(s)."""
+    """Call `operation` on the `service` SOAP endpoint (endpoint overridden — the WSDL
+    soap:address points at prod); audit-log; return serialized dict(s)."""
     from associations.models import BankApiAuditLog
-    client = _client(settings_obj, service)
+    client, endpoint, binding = _client(settings_obj, service)
+    svc = client.create_service(binding, endpoint)   # override prod address from WSDL
     status_code = 200
     try:
-        result = getattr(client.service, operation)(**kwargs)
+        result = getattr(svc, operation)(**kwargs)
         return serialize_object(result)
     except Exception:
         status_code = 500
-        logger.exception("ISB %s.%s failed", service, operation)
+        logger.exception("ISB %s.%s failed", service, operation)  # never log the envelope (cleartext pwd)
         raise
     finally:
         BankApiAuditLog.objects.create(
@@ -706,6 +749,8 @@ def invoke(settings_obj, service: str, operation: str, **kwargs):
             endpoint=operation, http_method="POST", status_code=status_code,
         )
 ```
+
+> The exact binding QNames (`YfirlitWSSoap`, `KrofurWSSoap`) and whether `MemorySignature` PEM-buffer construction needs a tweak are confirmed against `scratch/isb_spike.py` while porting. If in-memory buffers prove awkward, fall back to `0600` temp PEMs with cleanup. **Delete `scratch/isb_spike.py` at the end of this task** (`git rm HusfelagPy/scratch/isb_spike.py`).
 
 - [ ] **Step 6: Run mapper tests to verify they pass**
 
