@@ -217,7 +217,9 @@ export default function BankSettingsPage() {
     };
     // Only send the password when the user typed a new one — write-only field.
     if (isbPasswordInput.trim()) data.isb_password = isbPasswordInput.trim();
-    await postSettings(data);
+    const ok = await postSettings(data);
+    // On success, kick off a sync so accounts get validated and last_sync_at is recorded.
+    if (ok) await handleManualSync();
   }
 
   async function handleAddAccount() {
