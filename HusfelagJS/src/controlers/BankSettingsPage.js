@@ -130,6 +130,7 @@ export default function BankSettingsPage() {
         setIsbUsernameInput(s.isb_username || '');
         setIsbClaimAccountInput(s.isb_claim_account || '');
         setIsbPasswordInput('');
+        setMessage({ type: 'success', text: 'Bankastillingar vistaðar.' });
         return true;
       }
       const text = await _parseErrorDetail(resp, 'Villa við vistun.');
@@ -260,7 +261,9 @@ export default function BankSettingsPage() {
         setMessage({ type: 'success', text: 'Samstilling hafin í bakgrunni. Niðurstöður birtast eftir smá stund.' });
       } else {
         const data = await resp.json().catch(() => ({}));
-        setMessage({ type: 'error', text: data.detail || `Villa við samstillingu (${resp.status}).` });
+        const text = data.detail || `Villa við samstillingu (${resp.status}).`;
+        notifyError(new Error(text), 'bank_settings:handleManualSync', { assocId, status: resp.status });
+        setMessage({ type: 'error', text });
       }
     } catch (exc) {
       notifyError(exc, 'bank_settings:handleManualSync:network', { assocId });
