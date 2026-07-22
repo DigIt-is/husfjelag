@@ -70,6 +70,22 @@ export default function BankSettingsPage() {
     fetchSettings();
   }, [assocId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clear all settings/form state — used when switching to an association that
+  // has no bank settings, so we never show the previous association's data.
+  function resetSettingsState() {
+    setBankSettings(null);
+    setTemplateIdInput('');
+    setApiKeyInput('');
+    setShowApiKeyInput(false);
+    setShowTemplateInput(false);
+    setClaimModeInput('DIRECT_API');
+    setIsbUsernameInput('');
+    setIsbClaimAccountInput('');
+    setIsbPasswordInput('');
+    setAccounts([]);
+    setMessage(null);
+  }
+
   async function fetchSettings() {
     setLoading(true);
     try {
@@ -82,9 +98,14 @@ export default function BankSettingsPage() {
         setIsbUsernameInput(s.isb_username || '');
         setIsbClaimAccountInput(s.isb_claim_account || '');
         setIsbPasswordInput('');
+        setMessage(null);
+      } else {
+        // 404 → this association has no bank settings; clear the previous one's.
+        resetSettingsState();
       }
-      // 404 → no row yet, bankSettings stays null
-    } catch { /* leave defaults */ } finally {
+    } catch {
+      resetSettingsState();
+    } finally {
       setLoading(false);
     }
   }
