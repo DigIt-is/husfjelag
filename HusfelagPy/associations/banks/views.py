@@ -217,7 +217,6 @@ class AssociationBankSettingsView(APIView):
             "claim_mode": bs.claim_mode,
             "isb_username": bs.isb_username,
             "isb_password_set": bool(bs.isb_password),
-            "isb_claim_account": bs.isb_claim_account,
             "isb_bank_number": bs.isb_bank_number,
             "last_sync_at": bs.last_sync_at.isoformat() if bs.last_sync_at else None,
             "updated_at": bs.updated_at.isoformat(),
@@ -266,12 +265,10 @@ class AssociationBankSettingsView(APIView):
 
         if "isb_username" in request.data:
             bs.isb_username = request.data["isb_username"].strip()
-        if "isb_claim_account" in request.data:
-            bs.isb_claim_account = request.data["isb_claim_account"].strip()
         if "isb_bank_number" in request.data:
             bs.isb_bank_number = request.data["isb_bank_number"].strip()
-        if any(k in request.data for k in ("isb_username", "isb_claim_account", "isb_bank_number")):
-            bs.save(update_fields=["isb_username", "isb_claim_account", "isb_bank_number"])
+        if any(k in request.data for k in ("isb_username", "isb_bank_number")):
+            bs.save(update_fields=["isb_username", "isb_bank_number"])
         if "isb_password" in request.data:
             bs.set_isb_password(request.data["isb_password"].strip())
             bs.save(update_fields=["isb_password"])
@@ -292,7 +289,6 @@ class AssociationBankSettingsView(APIView):
             "claim_mode": bs.claim_mode,
             "isb_username": bs.isb_username,
             "isb_password_set": bool(bs.isb_password),
-            "isb_claim_account": bs.isb_claim_account,
             "isb_bank_number": bs.isb_bank_number,
             "last_sync_at": bs.last_sync_at.isoformat() if bs.last_sync_at else None,
             "updated_at": bs.updated_at.isoformat(),

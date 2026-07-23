@@ -398,10 +398,9 @@ class AssociationBankSettings(models.Model):
         max_length=32, choices=BankProvider.choices, default=BankProvider.LANDSBANKINN
     )
     api_key     = models.TextField(blank=True)  # Fernet-encrypted per-association Landsbankinn client_id
-    template_id = models.CharField(max_length=64, blank=True)   # Landsbankinn claims template
+    template_id = models.CharField(max_length=64, blank=True)   # Landsbankinn claims template / Íslandsbanki Auðkenni
     isb_username      = models.CharField(max_length=64, blank=True)   # WS-Security UsernameToken user
     isb_password      = models.TextField(blank=True)                  # Fernet-encrypted
-    isb_claim_account = models.CharField(max_length=32, blank=True)   # DEPRECATED: unused; replaced by isb_bank_number
     isb_bank_number   = models.CharField(max_length=8, blank=True)    # Bankanumer (claimant bank branch, e.g. "0500")
     claim_mode  = models.CharField(
         max_length=16, choices=ClaimMode.choices, default=ClaimMode.DIRECT_API
