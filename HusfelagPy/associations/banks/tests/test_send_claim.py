@@ -37,7 +37,7 @@ def test_create_claim_builds_correct_payload():
 
     captured_body = {}
 
-    def fake_post(path, body):
+    def fake_post(path, association_id, api_key, body):
         captured_body.update(body)
         return {"id": "CLAIM-ABC123", "status": "unpaid"}
 
