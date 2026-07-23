@@ -11,6 +11,7 @@ from django.utils.timezone import now as tz_now
 logger = logging.getLogger(__name__)
 
 import requests
+import zeep.exceptions
 
 from associations.models import (
     Association, AssociationAccess, AssociationRole,
@@ -35,6 +36,14 @@ def _parse_landsbankinn_error(exc) -> str:
         return body.get("detail") or body.get("message") or str(exc)
     except Exception:
         return str(exc)
+
+
+def _parse_islandsbanki_error(exc) -> str:
+    """Extract a human-readable error message from an Íslandsbanki SOAP fault."""
+    from zeep.exceptions import Fault
+    if isinstance(exc, Fault):
+        return exc.message or str(exc)
+    return str(exc)
 
 
 def _require_chair_or_cfo(request, association):
@@ -206,6 +215,9 @@ class AssociationBankSettingsView(APIView):
             "api_key_set": bool(bs.api_key),
             "template_id": bs.template_id,
             "claim_mode": bs.claim_mode,
+            "isb_username": bs.isb_username,
+            "isb_password_set": bool(bs.isb_password),
+            "isb_bank_number": bs.isb_bank_number,
             "last_sync_at": bs.last_sync_at.isoformat() if bs.last_sync_at else None,
             "updated_at": bs.updated_at.isoformat(),
         })
@@ -220,14 +232,17 @@ class AssociationBankSettingsView(APIView):
         if err:
             return err
 
-        bank = request.data.get("bank", BankProvider.LANDSBANKINN).strip()
-        if bank not in BankProvider.values:
-            return Response(
-                {"detail": f"Ógildur banki. Veldu: {', '.join(BankProvider.values)}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        defaults = {"bank": bank}
+        # Only set `bank` when explicitly provided — partial updates (saving
+        # credentials, template, or claim_mode) must NOT reset it to the default.
+        defaults = {}
+        if "bank" in request.data:
+            bank = request.data["bank"].strip()
+            if bank not in BankProvider.values:
+                return Response(
+                    {"detail": f"Ógildur banki. Veldu: {', '.join(BankProvider.values)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            defaults["bank"] = bank
         if "template_id" in request.data:
             defaults["template_id"] = request.data["template_id"].strip()
         if "claim_mode" in request.data:
@@ -248,6 +263,16 @@ class AssociationBankSettingsView(APIView):
             bs.set_api_key(request.data["api_key"].strip())
             bs.save(update_fields=["api_key"])
 
+        if "isb_username" in request.data:
+            bs.isb_username = request.data["isb_username"].strip()
+        if "isb_bank_number" in request.data:
+            bs.isb_bank_number = request.data["isb_bank_number"].strip()
+        if any(k in request.data for k in ("isb_username", "isb_bank_number")):
+            bs.save(update_fields=["isb_username", "isb_bank_number"])
+        if "isb_password" in request.data:
+            bs.set_isb_password(request.data["isb_password"].strip())
+            bs.save(update_fields=["isb_password"])
+
         # Kick off a sync whenever the API key is set or updated
         if "api_key" in request.data and request.data["api_key"].strip():
             try:
@@ -262,6 +287,9 @@ class AssociationBankSettingsView(APIView):
             "api_key_set": bool(bs.api_key),
             "template_id": bs.template_id,
             "claim_mode": bs.claim_mode,
+            "isb_username": bs.isb_username,
+            "isb_password_set": bool(bs.isb_password),
+            "isb_bank_number": bs.isb_bank_number,
             "last_sync_at": bs.last_sync_at.isoformat() if bs.last_sync_at else None,
             "updated_at": bs.updated_at.isoformat(),
         })
@@ -315,14 +343,20 @@ class SendClaimView(APIView):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        from associations.banks.landsbankinn import create_claim, _last_day_of_month
+        from associations.banks.dispatch import get_provider
+        from associations.banks.landsbankinn import _last_day_of_month
         try:
-            api_response = create_claim(collection, bank_settings)
-        except requests.HTTPError as exc:
-            detail = _parse_landsbankinn_error(exc)
+            provider = get_provider(bank_settings)
+            api_response = provider.create_claim(collection, bank_settings)
+        except (requests.HTTPError, zeep.exceptions.Fault) as exc:
+            detail = (
+                _parse_landsbankinn_error(exc)
+                if bank_settings.bank == BankProvider.LANDSBANKINN
+                else _parse_islandsbanki_error(exc)
+            )
             logger.error(
                 "SendClaimView: Landsbankinn error for collection %s: %s — %s",
-                collection_id, exc.response.status_code if exc.response is not None else "?", detail,
+                collection_id, exc.response.status_code if getattr(exc, "response", None) is not None else "?", detail,
             )
             bugsnag.notify(exc, context="send_claim", extra_data={"collection_id": collection_id, "detail": detail})
             return Response({"detail": detail}, status=status.HTTP_502_BAD_GATEWAY)
@@ -398,7 +432,9 @@ class SendAllClaimsView(APIView):
             .exclude(bank_claim__isnull=False)
         )
 
-        from associations.banks.landsbankinn import create_claim, _last_day_of_month
+        from associations.banks.dispatch import get_provider
+        from associations.banks.landsbankinn import _last_day_of_month
+        provider = get_provider(bank_settings)
         sent = 0
         skipped = 0
         errors = []
@@ -409,9 +445,13 @@ class SendAllClaimsView(APIView):
                 continue
 
             try:
-                api_response = create_claim(collection, bank_settings)
-            except requests.HTTPError as exc:
-                detail = _parse_landsbankinn_error(exc)
+                api_response = provider.create_claim(collection, bank_settings)
+            except (requests.HTTPError, zeep.exceptions.Fault) as exc:
+                detail = (
+                    _parse_landsbankinn_error(exc)
+                    if bank_settings.bank == BankProvider.LANDSBANKINN
+                    else _parse_islandsbanki_error(exc)
+                )
                 logger.error(
                     "SendAllClaimsView: Landsbankinn error for apt %s (assoc %s): %s",
                     collection.apartment.anr, association_id, detail,
@@ -497,10 +537,15 @@ class NotifyBudgetView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        bank_email = django_settings.BANK_LANDSBANKINN_EMAIL
+        if bank_settings.bank == BankProvider.ISLANDSBANKI:
+            bank_email = django_settings.BANK_ISLANDSBANKI_EMAIL
+            email_var, bank_label = "BANK_ISLANDSBANKI_EMAIL", "Íslandsbanka"
+        else:
+            bank_email = django_settings.BANK_LANDSBANKINN_EMAIL
+            email_var, bank_label = "BANK_LANDSBANKINN_EMAIL", "Landsbankans"
         if not bank_email:
             return Response(
-                {"detail": "Netfang Landsbankans (BANK_LANDSBANKINN_EMAIL) er ekki stillt."},
+                {"detail": f"Netfang {bank_label} ({email_var}) er ekki stillt."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -542,7 +587,7 @@ class NotifyBudgetView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        return Response({"detail": "Áætlun send til Landsbankans."}, status=status.HTTP_200_OK)
+        return Response({"detail": f"Áætlun send til {bank_label}."}, status=status.HTTP_200_OK)
 
 
 class SendBudgetOverviewView(APIView):
@@ -552,6 +597,7 @@ class SendBudgetOverviewView(APIView):
     # Map BankProvider → settings attribute holding the bank's email address.
     _BANK_EMAIL_SETTING = {
         BankProvider.LANDSBANKINN: "BANK_LANDSBANKINN_EMAIL",
+        BankProvider.ISLANDSBANKI: "BANK_ISLANDSBANKI_EMAIL",
     }
 
     def post(self, request, association_id):
@@ -762,7 +808,7 @@ class IncomingClaimsView(APIView):
 
     def get(self, request, association_id):
         from datetime import date, timedelta
-        from associations.banks.landsbankinn import fetch_incoming_claims
+        from associations.banks.dispatch import get_provider
 
         try:
             association = Association.objects.get(id=association_id)
@@ -789,7 +835,8 @@ class IncomingClaimsView(APIView):
             due_date_from = year_ago
 
         try:
-            claims = fetch_incoming_claims(association.id, settings.get_api_key(), association.ssn, due_date_from)
+            provider = get_provider(settings)
+            claims = provider.fetch_incoming_claims(association, settings, due_date_from)
             return Response({"claims": claims, "configured": True})
         except Exception as exc:
             logger.exception("fetch_incoming_claims failed for association %s", association_id)
