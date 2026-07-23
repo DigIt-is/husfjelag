@@ -541,10 +541,15 @@ class NotifyBudgetView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        bank_email = django_settings.BANK_LANDSBANKINN_EMAIL
+        if bank_settings.bank == BankProvider.ISLANDSBANKI:
+            bank_email = django_settings.BANK_ISLANDSBANKI_EMAIL
+            email_var, bank_label = "BANK_ISLANDSBANKI_EMAIL", "Íslandsbanka"
+        else:
+            bank_email = django_settings.BANK_LANDSBANKINN_EMAIL
+            email_var, bank_label = "BANK_LANDSBANKINN_EMAIL", "Landsbankans"
         if not bank_email:
             return Response(
-                {"detail": "Netfang Landsbankans (BANK_LANDSBANKINN_EMAIL) er ekki stillt."},
+                {"detail": f"Netfang {bank_label} ({email_var}) er ekki stillt."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -586,7 +591,7 @@ class NotifyBudgetView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        return Response({"detail": "Áætlun send til Landsbankans."}, status=status.HTTP_200_OK)
+        return Response({"detail": f"Áætlun send til {bank_label}."}, status=status.HTTP_200_OK)
 
 
 class SendBudgetOverviewView(APIView):
@@ -596,6 +601,7 @@ class SendBudgetOverviewView(APIView):
     # Map BankProvider → settings attribute holding the bank's email address.
     _BANK_EMAIL_SETTING = {
         BankProvider.LANDSBANKINN: "BANK_LANDSBANKINN_EMAIL",
+        BankProvider.ISLANDSBANKI: "BANK_ISLANDSBANKI_EMAIL",
     }
 
     def post(self, request, association_id):
