@@ -26,7 +26,7 @@ const BANKS = [
 ];
 
 export default function BankSettingsPage() {
-  const { user, currentAssociation, assocParam } = useContext(UserContext);
+  const { currentAssociation } = useContext(UserContext);
   const { openHelp } = useHelp();
 
   const [bankSettings, setBankSettings] = useState(null);  // null = no row in DB
@@ -45,14 +45,10 @@ export default function BankSettingsPage() {
   // Íslandsbanki credentials
   const [isbUsernameInput, setIsbUsernameInput]         = useState('');
   const [isbPasswordInput, setIsbPasswordInput]         = useState('');
-  const [isbClaimAccountInput, setIsbClaimAccountInput] = useState('');
+  const [showIsbLoginInput, setShowIsbLoginInput]       = useState(false);
 
-  // Íslandsbanki — manual account add (no auto-discovery)
-  const [accounts, setAccounts]             = useState([]);
-  const [accountsLoading, setAccountsLoading] = useState(false);
-  const [newAccountName, setNewAccountName]   = useState('');
-  const [newAccountNumber, setNewAccountNumber] = useState('');
-  const [addingAccount, setAddingAccount]     = useState(false);
+  // Íslandsbanki — Innheimtusniðmát (Auðkenni + banki)
+  const [isbBankNumberInput, setIsbBankNumberInput]     = useState('');
 
   // Bank-change confirmation dialog
   const [changeBankOpen, setChangeBankOpen] = useState(false);
@@ -61,9 +57,13 @@ export default function BankSettingsPage() {
   const assocId      = currentAssociation?.id;
   const canManage    = ['Formaður', 'Gjaldkeri', 'Kerfisstjóri'].includes(currentAssociation?.role);
   const isDirectApi  = (bankSettings?.claim_mode || 'DIRECT_API') === 'DIRECT_API';
-  const isConfigured = bankSettings?.bank === 'landsbankinn'
-                    && bankSettings?.api_key_set
-                    && (isDirectApi ? !!bankSettings?.template_id : true);
+  const isConfigured =
+    (bankSettings?.bank === 'landsbankinn'
+      && bankSettings?.api_key_set
+      && (isDirectApi ? !!bankSettings?.template_id : true))
+    || (bankSettings?.bank === 'islandsbanki'
+      && !!bankSettings?.isb_username
+      && (isDirectApi ? (!!bankSettings?.template_id && !!bankSettings?.isb_bank_number) : true));
 
   useEffect(() => {
     if (!assocId) return;
@@ -80,9 +80,9 @@ export default function BankSettingsPage() {
     setShowTemplateInput(false);
     setClaimModeInput('DIRECT_API');
     setIsbUsernameInput('');
-    setIsbClaimAccountInput('');
     setIsbPasswordInput('');
-    setAccounts([]);
+    setIsbBankNumberInput('');
+    setShowIsbLoginInput(false);
     setMessage(null);
   }
 
@@ -96,7 +96,7 @@ export default function BankSettingsPage() {
         setTemplateIdInput(s.template_id || '');
         setClaimModeInput(s.claim_mode || 'DIRECT_API');
         setIsbUsernameInput(s.isb_username || '');
-        setIsbClaimAccountInput(s.isb_claim_account || '');
+        setIsbBankNumberInput(s.isb_bank_number || '');
         setIsbPasswordInput('');
         setMessage(null);
       } else {
@@ -109,21 +109,6 @@ export default function BankSettingsPage() {
       setLoading(false);
     }
   }
-
-  async function fetchAccounts() {
-    if (!user) return;
-    setAccountsLoading(true);
-    try {
-      const resp = await apiFetch(`${API_URL}/BankAccount/${user.id}${assocParam}`);
-      if (resp.ok) setAccounts(await resp.json());
-    } catch { /* leave previous list */ } finally {
-      setAccountsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (bankSettings?.bank === 'islandsbanki' && assocId) fetchAccounts();
-  }, [bankSettings?.bank, assocId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function _parseErrorDetail(resp, fallback) {
     try {
@@ -149,7 +134,7 @@ export default function BankSettingsPage() {
         setTemplateIdInput(s.template_id || '');
         setClaimModeInput(s.claim_mode || 'DIRECT_API');
         setIsbUsernameInput(s.isb_username || '');
-        setIsbClaimAccountInput(s.isb_claim_account || '');
+        setIsbBankNumberInput(s.isb_bank_number || '');
         setIsbPasswordInput('');
         setMessage({ type: 'success', text: 'Bankastillingar vistaðar.' });
         return true;
@@ -232,47 +217,23 @@ export default function BankSettingsPage() {
   }
 
   async function handleSaveIsb() {
-    const data = {
-      isb_username: isbUsernameInput.trim(),
-      isb_claim_account: isbClaimAccountInput.trim(),
-    };
+    const data = { isb_username: isbUsernameInput.trim() };
     // Only send the password when the user typed a new one — write-only field.
     if (isbPasswordInput.trim()) data.isb_password = isbPasswordInput.trim();
     const ok = await postSettings(data);
-    // On success, kick off a sync so accounts get validated and last_sync_at is recorded.
-    if (ok) await handleManualSync();
+    if (ok) {
+      setShowIsbLoginInput(false);
+      // Kick off a sync so accounts get validated and last_sync_at is recorded.
+      await handleManualSync();
+    }
   }
 
-  async function handleAddAccount() {
-    setAddingAccount(true);
-    setMessage(null);
-    try {
-      const resp = await apiFetch(`${API_URL}/BankAccount${assocParam}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user?.id,
-          name: newAccountName.trim(),
-          account_number: newAccountNumber.trim(),
-        }),
-      });
-      if (resp.ok) {
-        setNewAccountName('');
-        setNewAccountNumber('');
-        setMessage({ type: 'success', text: 'Reikningur skráður. Samstilling hafin til að sannreyna hann.' });
-        await fetchAccounts();
-        await handleManualSync();
-      } else {
-        const text = await _parseErrorDetail(resp, 'Villa við skráningu reiknings.');
-        notifyError(new Error(text), 'bank_settings:handleAddAccount', { assocId, status: resp.status });
-        setMessage({ type: 'error', text });
-      }
-    } catch (exc) {
-      notifyError(exc, 'bank_settings:handleAddAccount:network', { assocId });
-      setMessage({ type: 'error', text: 'Tenging við þjón mistókst.' });
-    } finally {
-      setAddingAccount(false);
-    }
+  async function handleSaveIsbTemplate() {
+    const ok = await postSettings({
+      template_id: templateIdInput.trim(),
+      isb_bank_number: isbBankNumberInput.trim(),
+    });
+    if (ok) setShowTemplateInput(false);
   }
 
   async function handleManualSync() {
@@ -541,7 +502,19 @@ export default function BankSettingsPage() {
                 <>
                   {/* 2a: Innskráning (credentials) */}
                   <SectionCard title="Innskráning hjá Íslandsbanka" sx={{ mt: 2 }}>
-                    {canManage ? (
+                    {bankSettings.isb_username && !showIsbLoginInput ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1.5 }}>
+                        <CheckCircleOutlineIcon sx={{ color: '#2e7d32', fontSize: 20 }} />
+                        <Typography sx={{ fontWeight: 500, flex: 1 }}>
+                          Innskráning vistuð fyrir: {bankSettings.isb_username}
+                        </Typography>
+                        {canManage && (
+                          <Button sx={ghostButtonSx} size="small" onClick={() => setShowIsbLoginInput(true)}>
+                            Uppfæra innskráningu
+                          </Button>
+                        )}
+                      </Box>
+                    ) : canManage ? (
                       <>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, mb: 2 }}>
                           Sláðu inn innskráningarupplýsingar húsfélagsins hjá vefþjónustu Íslandsbanka.
@@ -563,24 +536,21 @@ export default function BankSettingsPage() {
                             fullWidth
                             helperText={bankSettings.isb_password_set && !isbPasswordInput ? 'Lykilorð er vistað' : ' '}
                           />
-                          <TextField
-                            label="Innheimtureikningur"
-                            value={isbClaimAccountInput}
-                            onChange={e => setIsbClaimAccountInput(e.target.value)}
-                            size="small"
-                            fullWidth
-                            placeholder="0133-66-000001"
-                          />
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                           <Button
                             variant="contained"
                             sx={primaryButtonSx}
                             onClick={handleSaveIsb}
-                            disabled={saving || !isbUsernameInput.trim() || !isbClaimAccountInput.trim()}
+                            disabled={saving || !isbUsernameInput.trim()}
                           >
                             {saving ? <CircularProgress size={18} color="inherit" /> : 'Vista'}
                           </Button>
+                          {bankSettings.isb_username && (
+                            <Button sx={ghostButtonSx} onClick={() => { setShowIsbLoginInput(false); setIsbPasswordInput(''); }}>
+                              Hætta við
+                            </Button>
+                          )}
                         </Box>
                       </>
                     ) : (
@@ -592,77 +562,119 @@ export default function BankSettingsPage() {
                     )}
                   </SectionCard>
 
-                  {/* 2b: Manual account add — Íslandsbanki has no auto-discovery */}
-                  <SectionCard title="Reikningar" sx={{ mt: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, mb: 1.5 }}>
-                      Íslandsbanki styður ekki sjálfvirka leit að reikningum — skráðu reikninginn handvirkt hér að neðan.
-                    </Typography>
-
-                    {accountsLoading ? (
-                      <CircularProgress size={20} />
-                    ) : accounts.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-                        {accounts.map(acc => (
-                          <Box
-                            key={acc.id}
-                            sx={{
-                              display: 'flex', alignItems: 'center', gap: 1.5,
-                              p: '8px 12px', border: `1px solid ${BORDER}`, borderRadius: 1.5,
-                            }}
-                          >
-                            <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
-                              {acc.name}{' '}
-                              <Box component="span" sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>
-                                · {acc.account_number}
-                              </Box>
-                            </Typography>
-                            <Chip
-                              label={acc.is_connected ? 'Tengt' : 'Óstaðfest'}
-                              color={acc.is_connected ? 'success' : 'default'}
-                              size="small"
-                            />
-                          </Box>
-                        ))}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Enginn reikningur hefur verið skráður.
+                  {/* 2b: Claim mode toggle — only once login is set */}
+                  {bankSettings.isb_username && (
+                    <SectionCard title="Innheimtuaðferð" sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, mb: 2 }}>
+                        Veldu hvernig húsfélagsgjöld eru innheimt í gegnum Íslandsbanka.
                       </Typography>
-                    )}
-
-                    {canManage && (
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                        <TextField
-                          label="Heiti reiknings"
-                          value={newAccountName}
-                          onChange={e => setNewAccountName(e.target.value)}
-                          size="small"
-                          sx={{ minWidth: 180 }}
-                        />
-                        <TextField
-                          label="Reikningsnúmer"
-                          value={newAccountNumber}
-                          onChange={e => setNewAccountNumber(e.target.value)}
-                          size="small"
-                          placeholder="0133-66-000001"
-                          sx={{ minWidth: 200 }}
-                        />
-                        <Button
-                          variant="contained"
-                          sx={primaryButtonSx}
-                          onClick={handleAddAccount}
-                          disabled={addingAccount || !newAccountName.trim() || !newAccountNumber.trim()}
-                        >
-                          {addingAccount ? <CircularProgress size={18} color="inherit" /> : 'Bæta við reikningi'}
-                        </Button>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {[
+                          { value: 'DIRECT_API', label: 'Stofna innheimtukröfur frá husfjelag.is', sub: 'Við sendum kröfurnar til Íslandsbanka í hverjum mánuði. Skráðu auðkenni og banka hér fyrir neðan.' },
+                          { value: 'BANK_SERVICE', label: 'Nota húsfélagaþjónustu bankans', sub: 'Íslandsbanki sér um innheimtuna. Þú sendir áætlun til bankans í tölvupósti og þau stofna mánaðarlega greiðsluseðla. Þau eru látin vita þegar áætlunin breytist.' },
+                        ].map(opt => {
+                          const selected = claimModeInput === opt.value;
+                          return (
+                            <Box
+                              key={opt.value}
+                              onClick={canManage && !saving ? () => handleClaimModeChange(opt.value) : undefined}
+                              sx={{
+                                border: `1.5px solid ${selected ? NAVY : BORDER}`,
+                                borderRadius: 1.5,
+                                p: 1.5,
+                                cursor: canManage && !saving ? 'pointer' : 'default',
+                                background: selected ? '#f0f3fa' : '#fff',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 1.5,
+                                transition: 'border-color 0.15s',
+                              }}
+                            >
+                              <Box sx={{
+                                flexShrink: 0, width: 18, height: 18, borderRadius: '50%', mt: '2px',
+                                border: `2px solid ${selected ? NAVY : '#bbb'}`,
+                                background: selected ? NAVY : 'transparent',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                {selected && <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: selected ? 600 : 400, color: selected ? NAVY : 'text.primary' }}>
+                                  {opt.label}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">{opt.sub}</Typography>
+                              </Box>
+                            </Box>
+                          );
+                        })}
                       </Box>
-                    )}
-                  </SectionCard>
+                    </SectionCard>
+                  )}
 
-                  {canManage && (
-                    <Button sx={{ ...ghostButtonSx, mt: 2 }} size="small" onClick={() => requestBankChange(null)}>
-                      ← Velja annan banka
-                    </Button>
+                  {/* 2c: Innheimtusniðmát — only in DIRECT_API mode */}
+                  {bankSettings.isb_username && isDirectApi && (
+                    <SectionCard title="Innheimtusniðmát" sx={{ mt: 2 }}>
+                      {bankSettings.template_id && bankSettings.isb_bank_number && !showTemplateInput ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1.5 }}>
+                          <CheckCircleOutlineIcon sx={{ color: '#2e7d32', fontSize: 20 }} />
+                          <Typography sx={{ fontWeight: 500, flex: 1 }}>
+                            Innheimtusniðmát stillt: Auðkenni <Box component="span" sx={{ fontFamily: 'monospace' }}>{bankSettings.template_id}</Box>, banki <Box component="span" sx={{ fontFamily: 'monospace' }}>{bankSettings.isb_bank_number}</Box>
+                          </Typography>
+                          {canManage && (
+                            <Button sx={ghostButtonSx} size="small" onClick={() => setShowTemplateInput(true)}>
+                              Uppfæra
+                            </Button>
+                          )}
+                        </Box>
+                      ) : canManage ? (
+                        <>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, mb: 2 }}>
+                            Auðkenni og banki innheimtusniðmáts frá Íslandsbanka þurfa að vera stillt til að geta sent inn kröfur.
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                            <TextField
+                              label="Auðkenni"
+                              value={templateIdInput}
+                              onChange={e => setTemplateIdInput(e.target.value)}
+                              size="small"
+                              placeholder="IBB"
+                              sx={{ minWidth: 160 }}
+                            />
+                            <TextField
+                              label="Banki"
+                              value={isbBankNumberInput}
+                              onChange={e => setIsbBankNumberInput(e.target.value)}
+                              size="small"
+                              placeholder="0500"
+                              sx={{ minWidth: 160 }}
+                            />
+                            <Button
+                              variant="contained"
+                              sx={primaryButtonSx}
+                              onClick={handleSaveIsbTemplate}
+                              disabled={saving || !templateIdInput.trim() || !isbBankNumberInput.trim()}
+                            >
+                              {saving ? <CircularProgress size={18} color="inherit" /> : 'Vista'}
+                            </Button>
+                            {bankSettings.template_id && bankSettings.isb_bank_number && (
+                              <Button sx={ghostButtonSx} onClick={() => {
+                                setShowTemplateInput(false);
+                                setTemplateIdInput(bankSettings.template_id);
+                                setIsbBankNumberInput(bankSettings.isb_bank_number);
+                              }}>
+                                Hætta við
+                              </Button>
+                            )}
+                          </Box>
+                        </>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+                          {bankSettings.template_id && bankSettings.isb_bank_number
+                            ? `Innheimtusniðmát stillt: Auðkenni ${bankSettings.template_id}, banki ${bankSettings.isb_bank_number}`
+                            : 'Innheimtusniðmát hefur ekki verið stillt.'}
+                        </Typography>
+                      )}
+                    </SectionCard>
                   )}
                 </>
               ) : (
@@ -681,8 +693,9 @@ export default function BankSettingsPage() {
             </>
           )}
 
-          {/* ── Section 3: Connection status (Landsbankinn, api_key set) ── */}
-          {bankSettings?.bank === 'landsbankinn' && bankSettings?.api_key_set && (
+          {/* ── Section 3: Connection status ──────────────────────── */}
+          {((bankSettings?.bank === 'landsbankinn' && bankSettings?.api_key_set) ||
+            (bankSettings?.bank === 'islandsbanki' && bankSettings?.isb_username)) && (
             <SectionCard title="Staða tengingar" sx={{ mt: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1.5, flexWrap: 'wrap' }}>
                 <Chip label="Tengt" color="success" size="small" />
