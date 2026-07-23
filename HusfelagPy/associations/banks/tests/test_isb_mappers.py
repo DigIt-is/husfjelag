@@ -51,13 +51,15 @@ class _Coll:
     amount_total = Decimal("15000.00")
     budget = _Budget()
     payer = _Payer()
-class _Settings: isb_claim_account = "0133-66-000001"
+class _Settings:
+    isb_bank_number = "0500"
+    template_id = "IBB"
 
 def test_build_stofnakrofu_payload():
     p = m.build_stofnakrofu_payload(_Coll(), _Settings())
     assert p["KennitalaKrofuhafa"] == "1000000000"
     assert p["KennitalaGreidanda"] == "2345678901"
-    assert p["Bankanumer"] == 133          # first 4 digits of the claim account
+    assert p["Bankanumer"] == 500          # isb_bank_number as int
     assert p["Hofudbok"] == 66             # claims ledger
     assert p["Krofunumer"] == 4567         # == Collection.id
     assert p["Upphaed"] == 15000.0
@@ -65,6 +67,7 @@ def test_build_stofnakrofu_payload():
     assert p["Eindagi"].startswith("2026-07-31")
     assert p["Nidurfellingardagur"].startswith("2030-07-31")   # gjalddagi + 4y
     assert len(p["Tilvisun"]) <= 16                              # Tilvisun ≤ 16 chars
+    assert p["Audkenni"] == "IBB"          # ÍSB routing identifier (from template_id)
     # all required fee/interest/discount fields present and zeroed:
     for k in ("TilkynningarOgGreidslugjald1", "Vanskilagjald1", "Drattavaxtaprosenta",
               "Afslattur1", "AnnarKostnadur", "Gengisbanki"):

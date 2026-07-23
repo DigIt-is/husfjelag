@@ -77,7 +77,7 @@ def test_create_claim_returns_id_without_persisting(django_user_model):
     from users.models import User
     from decimal import Decimal
     a = Association.objects.create(ssn="1000000000", name="I", address="A", postal_code="101", city="Rvk")
-    bs = AssociationBankSettings.objects.create(association=a, bank="islandsbanki", isb_username="u", isb_claim_account="0133-66-000001")
+    bs = AssociationBankSettings.objects.create(association=a, bank="islandsbanki", isb_username="u", isb_bank_number="0500", template_id="IBB")
     payer = User.objects.create(kennitala="2345678901", name="Payer")
     budget = Budget.objects.create(association=a, year=2026)
     apt = Apartment.objects.create(association=a, anr="01", fnr="F1")
@@ -87,5 +87,5 @@ def test_create_claim_returns_id_without_persisting(django_user_model):
         out = IslandsbankiProvider().create_claim(coll, bs)
     assert inv.call_args.args[1] == "krofur" and inv.call_args.args[2] == "StofnaKrofu"
     assert inv.call_args.kwargs["krafa"]["Krofunumer"] == coll.id
-    assert out == {"id": f"133:66:{coll.id}:2026-07-31"}
+    assert out == {"id": f"500:66:{coll.id}:2026-07-31"}
     assert not BankClaim.objects.filter(collection=coll).exists()   # provider does not persist; the view does

@@ -57,11 +57,11 @@ def _last_day_of_month(year: int, month: int) -> date:
 
 
 def build_stofnakrofu_payload(collection, settings) -> dict:
-    banki, _hofudbok, _reikn = parse_account_number(settings.isb_claim_account)
+    banki = int(settings.isb_bank_number)
     due = _last_day_of_month(collection.budget.year, collection.month)
     cancel = date(due.year + 4, due.month, due.day)
     month_label = f"{collection.month:02d}/{collection.budget.year}"
-    return {
+    payload = {
         "KennitalaKrofuhafa": collection.budget.association.ssn,
         "KennitalaGreidanda": collection.payer.kennitala,
         "Bankanumer": banki,
@@ -82,6 +82,9 @@ def build_stofnakrofu_payload(collection, settings) -> dict:
         "DagafjoldiAfslattar1": 0, "DagafjoldiAfslattar2": 0,
         "Gengisbanki": 0,
     }
+    if settings.template_id:
+        payload["Audkenni"] = settings.template_id   # ÍSB routing identifier (e.g. "IBB")
+    return payload
 
 
 def map_faersla_to_transaction_fields(faersla: dict, account_number: str) -> dict:

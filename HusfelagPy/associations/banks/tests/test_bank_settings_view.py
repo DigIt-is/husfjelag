@@ -78,6 +78,7 @@ def test_post_islandsbanki_settings_sets_creds(chair_client, association, chair_
             "isb_username": "svc",
             "isb_password": "pw",
             "isb_claim_account": "0133-66-000001",
+            "isb_bank_number": "0500",
         }),
         content_type="application/json",
     )
@@ -85,12 +86,14 @@ def test_post_islandsbanki_settings_sets_creds(chair_client, association, chair_
     from associations.models import AssociationBankSettings
     bs = AssociationBankSettings.objects.get(association=association)
     assert bs.bank == "islandsbanki" and bs.isb_username == "svc" and bs.isb_claim_account == "0133-66-000001"
+    assert bs.isb_bank_number == "0500"
     assert bs.get_isb_password() == "pw"
     data = resp.json()
     assert "isb_password" not in data          # never echoed back
     assert data["isb_username"] == "svc"
     assert data["isb_password_set"] is True
     assert data["isb_claim_account"] == "0133-66-000001"
+    assert data["isb_bank_number"] == "0500"
 
 
 @pytest.mark.django_db
